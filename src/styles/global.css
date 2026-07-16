@@ -159,3 +159,139 @@ td {
   justify-content: flex-end;
   margin-top: 1rem;
 }
+
+/* 帳票印刷プレビュー(ADR 0005: OS標準の印刷ダイアログでPDF保存する) */
+.print-toolbar {
+  padding: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.print-page {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 1rem auto;
+  padding: 15mm;
+  background: white;
+  color: black;
+  box-sizing: border-box;
+}
+
+.print-page table {
+  font-size: 0.9rem;
+}
+
+.print-page table thead {
+  display: table-header-group;
+}
+
+.print-page table tr {
+  break-inside: avoid;
+}
+
+.draft-watermark {
+  color: var(--color-danger);
+  font-weight: bold;
+  border: 2px solid var(--color-danger);
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+}
+
+.print-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 2px solid black;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.print-meta {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 0 0.75rem;
+  font-size: 0.85rem;
+}
+
+.print-meta dt {
+  font-weight: bold;
+}
+
+.print-meta dd {
+  margin: 0;
+}
+
+.print-parties {
+  display: flex;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: 1rem;
+}
+
+.print-client-name,
+.print-company-name {
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.print-total-highlight {
+  font-size: 1.4rem;
+  font-weight: bold;
+  margin: 1rem 0;
+}
+
+.print-lines th,
+.print-lines td {
+  border: 1px solid black;
+}
+
+.print-line-description {
+  font-size: 0.8rem;
+  color: #444;
+}
+
+.print-totals {
+  width: 40%;
+  margin-left: auto;
+  margin-top: 1rem;
+}
+
+.print-totals th,
+.print-totals td {
+  border: none;
+  text-align: right;
+}
+
+.print-totals th {
+  text-align: left;
+}
+
+.print-total-row th,
+.print-total-row td {
+  font-size: 1.1rem;
+  font-weight: bold;
+  border-top: 2px solid black;
+}
+
+.print-note {
+  margin-top: 2rem;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .app-nav {
+    display: none;
+  }
+
+  .print-page {
+    margin: 0;
+    box-shadow: none;
+  }
+
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+}

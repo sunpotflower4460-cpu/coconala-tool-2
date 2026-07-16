@@ -6,8 +6,10 @@ import { CatalogListPage } from "@/features/catalog/CatalogListPage";
 import { ClientFormPage } from "@/features/clients/ClientFormPage";
 import { ClientListPage } from "@/features/clients/ClientListPage";
 import { CompanySettingsPage } from "@/features/companies/CompanySettingsPage";
+import { DocumentDetailPage } from "@/features/document-preview/DocumentDetailPage";
+import { DocumentPrintPage } from "@/features/document-preview/DocumentPrintPage";
+import { DocumentListPage } from "@/features/documents/DocumentListPage";
 import { EstimateEditorPage } from "@/features/estimates/EstimateEditorPage";
-import { EstimateListPage } from "@/features/estimates/EstimateListPage";
 import { OnboardingWizard } from "@/features/onboarding/OnboardingWizard";
 import { RequireDatabase } from "@/infrastructure/database/RequireDatabase";
 
@@ -17,6 +19,14 @@ const router = createBrowserRouter([
     element: (
       <RequireDatabase>
         <OnboardingWizard />
+      </RequireDatabase>
+    ),
+  },
+  {
+    path: "/documents/:id/print",
+    element: (
+      <RequireDatabase>
+        <DocumentPrintPage />
       </RequireDatabase>
     ),
   },
@@ -31,9 +41,13 @@ const router = createBrowserRouter([
       { path: "catalog", element: <CatalogListPage /> },
       { path: "catalog/new", element: <CatalogFormPage /> },
       { path: "catalog/:id/edit", element: <CatalogFormPage /> },
-      { path: "estimates", element: <EstimateListPage /> },
+      { path: "estimates", element: <DocumentListPage documentType="estimate" allowCreate /> },
       { path: "estimates/new", element: <EstimateEditorPage /> },
       { path: "estimates/:id", element: <EstimateEditorPage /> },
+      { path: "invoices", element: <DocumentListPage documentType="invoice" /> },
+      { path: "deliveries", element: <DocumentListPage documentType="delivery_note" /> },
+      { path: "receipts", element: <DocumentListPage documentType="receipt" /> },
+      { path: "documents/:id", element: <DocumentDetailPage /> },
       { path: "settings/company", element: <CompanySettingsPage /> },
     ],
   },

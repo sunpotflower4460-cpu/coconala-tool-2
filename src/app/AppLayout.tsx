@@ -6,6 +6,9 @@ const NAV_ITEMS = [
   { to: "/clients", label: "顧客" },
   { to: "/catalog", label: "価格表" },
   { to: "/estimates", label: "見積書" },
+  { to: "/invoices", label: "請求書" },
+  { to: "/deliveries", label: "納品書" },
+  { to: "/receipts", label: "領収書" },
   { to: "/settings/company", label: "会社情報" },
 ];
 

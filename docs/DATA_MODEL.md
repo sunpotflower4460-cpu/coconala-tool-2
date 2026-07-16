@@ -1,6 +1,6 @@
 # DATA_MODEL.md
 
-Phase 1時点のSQLiteスキーマ。実体は`src-tauri/migrations/0001_initial.sql`。AI関連テーブル(`ai_extractions`)はPhase 3のmigrationで追加する。
+Phase 1〜2時点のSQLiteスキーマ。実体は`src-tauri/migrations/0001_initial.sql`(テーブル定義はPhase 1のまま変更なし。Phase 2は既存の`documents`列を使って発行・変換・複製を実装した)。AI関連テーブル(`ai_extractions`)はPhase 3のmigrationで追加する。
 
 すべてのテーブルは`PRAGMA foreign_keys = ON`のもとで運用する。金額は常に円の整数(INTEGER)で保持する。
 
@@ -172,3 +172,36 @@ Phase 1時点のSQLiteスキーマ。実体は`src-tauri/migrations/0001_initial
 8. `totalYen`: `tax_exclusive`なら`subtotalYen + taxYen`、`tax_inclusive`なら`subtotalYen`
 
 0円・1円・大きな金額・複数税率混在・値引きあり/なしの組み合わせを単体テストで網羅する。
+
+## 発行(Phase 2)
+
+`src/application/commands/issue-document.command.ts`が`draft`→`issued`の遷移時に以下を行う。
+
+1. `src/domain/documents/document-number.ts`で書類番号を採番する(`{プレフィックス}-{発行年}-{4桁連番}`。プレフィックスは`app_settings`の種類別設定を使う)
+2. `documents.company_snapshot_json` / `client_snapshot_json`に、その時点の`companies` / `clients`の内容をJSONでそのまま複製する
+3. `documents.calculation_snapshot_json`に、以下の形(`CalculationSnapshot`, `src/domain/documents/snapshot.ts`)で計算結果を複製する
+
+```json
+{
+  "pricingType": "tax_exclusive",
+  "roundingMode": "floor",
+  "discountYen": 0,
+  "subtotalYen": 90000,
+  "taxYen": 9000,
+  "totalYen": 99000,
+  "taxBreakdown": [{ "taxCategory": "taxable_10", "taxableAmountYen": 90000, "taxYen": 9000 }]
+}
+```
+
+発行後、`companies` / `clients` / `catalog_items`の内容を変更しても、発行済み書類のこれらのスナップショット列は変化しない(ADR 0004)。`tests/integration/database/issue-document.test.ts`で検証する。
+
+## 変換・複製(Phase 2)
+
+`src/domain/documents/conversion.ts`が変換可否を定義する。
+
+- `estimate` → `invoice` / `delivery_note`
+- `invoice` → `receipt`
+
+変換元は`issued`以降の状態のみ許可する(`draft`は変換不可)。変換すると明細を複製した新しい`draft`書類(`source_document_id`に変換元IDを保持)を作る。加えて、見積→請求書の変換は変換元の見積を`invoiced`へ、請求書→領収書の変換は変換元の請求書を`paid`へ、それぞれ可能な場合のみ自動的に進める(`src/application/commands/convert-document.command.ts`)。
+
+複製(`duplicate-document.command.ts`)は状態を問わず、番号やスナップショットを持たない新しい`draft`を同じ種類で作る。

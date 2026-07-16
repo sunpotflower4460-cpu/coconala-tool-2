@@ -10,9 +10,10 @@ describe("canTransitionDocumentStatus", () => {
     expect(canTransitionDocumentStatus("draft", "approved")).toBe(false);
   });
 
-  it("issuedはapproved/rejected/cancelledへ遷移できる", () => {
+  it("issuedはapproved/rejected/paid/cancelledへ遷移できる", () => {
     expect(canTransitionDocumentStatus("issued", "approved")).toBe(true);
     expect(canTransitionDocumentStatus("issued", "rejected")).toBe(true);
+    expect(canTransitionDocumentStatus("issued", "paid")).toBe(true); // 請求書はissued→paidと直接進む
     expect(canTransitionDocumentStatus("issued", "cancelled")).toBe(true);
   });
 

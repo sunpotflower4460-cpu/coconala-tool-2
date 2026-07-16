@@ -6,13 +6,8 @@ import { ConfirmDialog } from "@/components/feedback/ConfirmDialog";
 import { ErrorBanner } from "@/components/feedback/ErrorBanner";
 import type { CatalogItem } from "@/domain/catalog/types";
 import { useDatabase } from "@/infrastructure/database/use-database";
+import { TAX_CATEGORY_LABELS } from "@/lib/formatting/document-labels";
 import { formatYen } from "@/lib/formatting/money";
-
-const TAX_CATEGORY_LABELS: Record<CatalogItem["taxCategory"], string> = {
-  taxable_10: "10%",
-  taxable_8: "8%(軽減税率)",
-  tax_exempt: "非課税",
-};
 
 export function CatalogListPage() {
   const db = useDatabase();

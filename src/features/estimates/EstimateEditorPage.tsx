@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { issueDocument } from "@/application/commands/issue-document.command";
 import {
   saveEstimateDraft,
   type SaveEstimateDraftLineInput,
@@ -8,13 +9,16 @@ import { getAppSettings } from "@/application/queries/get-app-settings.query";
 import { getDocumentDraft } from "@/application/queries/get-document-draft.query";
 import { listCatalogItems } from "@/application/queries/list-catalog-items.query";
 import { listClients } from "@/application/queries/list-clients.query";
+import { ConfirmDialog } from "@/components/feedback/ConfirmDialog";
 import { ErrorBanner } from "@/components/feedback/ErrorBanner";
 import { SaveStatus, type SaveStatusValue } from "@/components/feedback/SaveStatus";
 import type { CatalogItem } from "@/domain/catalog/types";
 import type { Client } from "@/domain/clients/types";
+import type { DocumentType } from "@/domain/documents/types";
 import { calculateDocumentTotals } from "@/domain/tax/calculate-document-totals";
 import type { PricingType, RoundingMode, TaxCategory } from "@/domain/tax/types";
 import { useDatabase } from "@/infrastructure/database/use-database";
+import { DOCUMENT_TYPE_LABELS } from "@/lib/formatting/document-labels";
 import { formatYen } from "@/lib/formatting/money";
 
 interface EditableLine extends SaveEstimateDraftLineInput {
@@ -51,6 +55,7 @@ export function EstimateEditorPage() {
   const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
   const [roundingMode, setRoundingMode] = useState<RoundingMode>("floor");
 
+  const [documentType, setDocumentType] = useState<DocumentType>("estimate");
   const [clientId, setClientId] = useState<number | null>(null);
   const [issueDate, setIssueDate] = useState("");
   const [validUntil, setValidUntil] = useState("");
@@ -61,6 +66,8 @@ export function EstimateEditorPage() {
 
   const [saveStatus, setSaveStatus] = useState<SaveStatusValue>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [issuing, setIssuing] = useState(false);
+  const [showIssueConfirm, setShowIssueConfirm] = useState(false);
 
   useEffect(() => {
     void listClients(db).then(setClients);
@@ -72,6 +79,7 @@ export function EstimateEditorPage() {
     if (documentId === null) return;
     void getDocumentDraft(db, documentId).then((draft) => {
       if (!draft) return;
+      setDocumentType(draft.header.documentType);
       setClientId(draft.header.clientId);
       setIssueDate(draft.header.issueDate ?? "");
       setValidUntil(draft.header.validUntil ?? "");
@@ -174,11 +182,31 @@ export function EstimateEditorPage() {
     }
   }
 
+  async function handleIssue() {
+    if (documentId === null) return;
+    setIssuing(true);
+    setErrorMessage(null);
+    const result = await issueDocument(db, documentId);
+    setIssuing(false);
+    setShowIssueConfirm(false);
+    if (!result.ok) {
+      setErrorMessage(result.error.message);
+      return;
+    }
+    void navigate(`/documents/${documentId}`);
+  }
+
   return (
     <div>
-      <h1>{documentId === null ? "新しい見積書(下書き)" : "見積書(下書き)を編集"}</h1>
+      <h1>
+        {documentId === null
+          ? "新しい見積書(下書き)"
+          : `${DOCUMENT_TYPE_LABELS[documentType]}(下書き)を編集`}
+      </h1>
+      {documentId !== null && (
+        <Link to={`/documents/${documentId}/print`}>印刷プレビューを開く</Link>
+      )}
       {errorMessage && <ErrorBanner message={errorMessage} />}
-
       <div className="field">
         <label htmlFor="estimate-client">顧客</label>
         <select
@@ -194,7 +222,6 @@ export function EstimateEditorPage() {
           ))}
         </select>
       </div>
-
       <div style={{ display: "flex", gap: "1rem" }}>
         <div className="field">
           <label htmlFor="estimate-issue-date">発行予定日</label>
@@ -226,7 +253,6 @@ export function EstimateEditorPage() {
           </select>
         </div>
       </div>
-
       <h2>明細</h2>
       <table>
         <thead>
@@ -304,7 +330,6 @@ export function EstimateEditorPage() {
           ))}
         </tbody>
       </table>
-
       <div style={{ display: "flex", gap: "1rem", margin: "1rem 0" }}>
         <button type="button" onClick={addBlankLine}>
           明細を追加
@@ -326,7 +351,6 @@ export function EstimateEditorPage() {
           </select>
         )}
       </div>
-
       <div className="field">
         <label htmlFor="estimate-discount">全体値引き(円)</label>
         <input
@@ -337,7 +361,6 @@ export function EstimateEditorPage() {
           style={{ width: "8rem" }}
         />
       </div>
-
       <div className="field">
         <label htmlFor="estimate-note">備考</label>
         <textarea
@@ -346,7 +369,6 @@ export function EstimateEditorPage() {
           onChange={(event) => setNote(event.target.value)}
         />
       </div>
-
       {totals && (
         <div aria-live="polite">
           <p>小計: {formatYen(totals.subtotalYen)}</p>
@@ -356,7 +378,6 @@ export function EstimateEditorPage() {
           </p>
         </div>
       )}
-
       <button
         type="button"
         onClick={() => {
@@ -365,8 +386,21 @@ export function EstimateEditorPage() {
         disabled={saveStatus === "saving"}
       >
         下書きを保存
-      </button>
+      </button>{" "}
+      {documentId !== null && (
+        <button type="button" onClick={() => setShowIssueConfirm(true)} disabled={issuing}>
+          発行する
+        </button>
+      )}
       <SaveStatus status={saveStatus} errorMessage={errorMessage ?? undefined} />
+      <ConfirmDialog
+        open={showIssueConfirm}
+        title={`この${DOCUMENT_TYPE_LABELS[documentType]}を発行しますか?`}
+        description="発行すると書類番号が採番され、会社情報・顧客情報・金額が固定されます。発行後は明細を編集できません。"
+        confirmLabel="発行する"
+        onConfirm={() => void handleIssue()}
+        onCancel={() => setShowIssueConfirm(false)}
+      />
     </div>
   );
 }
