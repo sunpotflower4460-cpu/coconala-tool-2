@@ -32,6 +32,11 @@
 - Phase 4: ヘルプ画面(画面説明・FAQ・インストール案内・サポート範囲)、5分操作動画の台本(`docs/DEMO_VIDEO_SCRIPT.md`)
 - Phase 4: 複数SQL文にまたがる書き込みを真に原子的に実行する`executeTransaction`基盤(ADR 0007)
 - Phase 4: unit/integration test 38件追加(計137件)
+- Phase 5: バージョン情報画面(アプリバージョン・DBスキーマバージョン・動作環境・ライセンス状態・更新確認)
+- Phase 5: ライセンス確認・更新確認の抽象境界(`LicensePort`/`UpdateCheckPort`)。初期販売はライセンスなし・更新確認は未設定として安全に動作し、チェック失敗が既存データの閲覧を妨げない設計(ADR 0008)
+- Phase 5: JSON列によるFeature Flag基盤(`app_settings.feature_flags_json`、スキーマ変更なしでフラグを追加可能)
+- Phase 5: リリース前のバージョン整合性チェック(`pnpm check:release`)、`docs/RELEASE_PROCESS.md`の具体化
+- Phase 5: unit test 12件追加(計144件)
 
 ### Fixed
 

@@ -2,6 +2,7 @@ import type { DatabasePort } from "@/application/ports/database";
 import { toAppError, type AppError } from "@/application/errors";
 import { getAppSettings } from "@/application/queries/get-app-settings.query";
 import type { AppSettings, AppSettingsInput } from "@/domain/shared/app-settings";
+import { serializeFeatureFlags } from "@/domain/shared/feature-flags";
 import { err, ok, type Result } from "@/lib/result";
 
 export async function updateAppSettings(
@@ -25,6 +26,7 @@ export async function updateAppSettings(
          ai_model = ?,
          onboarding_completed = ?,
          onboarding_step = ?,
+         feature_flags_json = ?,
          updated_at = ?
        WHERE id = 1`,
       [
@@ -38,6 +40,7 @@ export async function updateAppSettings(
         next.aiModel,
         next.onboardingCompleted ? 1 : 0,
         next.onboardingStep,
+        serializeFeatureFlags(next.featureFlags),
         now,
       ],
     );

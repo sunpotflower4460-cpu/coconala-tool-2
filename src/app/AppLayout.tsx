@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { to: "/settings/ai", label: "AI設定" },
   { to: "/settings/data", label: "データ管理" },
   { to: "/help", label: "ヘルプ" },
+  { to: "/version", label: "バージョン情報" },
 ];
 
 export function AppLayout() {

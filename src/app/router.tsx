@@ -16,6 +16,7 @@ import { DocumentListPage } from "@/features/documents/DocumentListPage";
 import { EstimateEditorPage } from "@/features/estimates/EstimateEditorPage";
 import { InquiryExtractionPage } from "@/features/inquiries/InquiryExtractionPage";
 import { OnboardingWizard } from "@/features/onboarding/OnboardingWizard";
+import { VersionInfoPage } from "@/features/version-info/VersionInfoPage";
 import { RequireDatabase } from "@/infrastructure/database/RequireDatabase";
 
 const router = createBrowserRouter([
@@ -59,6 +60,7 @@ const router = createBrowserRouter([
       { path: "settings/data", element: <DataManagementPage /> },
       { path: "csv-import", element: <CsvImportPage /> },
       { path: "help", element: <HelpPage /> },
+      { path: "version", element: <VersionInfoPage /> },
     ],
   },
 ]);

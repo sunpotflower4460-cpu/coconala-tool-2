@@ -1,5 +1,6 @@
 import type { DatabasePort } from "@/application/ports/database";
 import type { AppSettings } from "@/domain/shared/app-settings";
+import { parseFeatureFlags } from "@/domain/shared/feature-flags";
 import type { RoundingMode } from "@/domain/tax/types";
 
 interface AppSettingsRow {
@@ -13,6 +14,7 @@ interface AppSettingsRow {
   ai_model: string;
   onboarding_completed: number;
   onboarding_step: string;
+  feature_flags_json: string;
 }
 
 function mapAppSettingsRow(row: AppSettingsRow): AppSettings {
@@ -27,6 +29,7 @@ function mapAppSettingsRow(row: AppSettingsRow): AppSettings {
     aiModel: row.ai_model,
     onboardingCompleted: row.onboarding_completed === 1,
     onboardingStep: row.onboarding_step,
+    featureFlags: parseFeatureFlags(row.feature_flags_json),
   };
 }
 
@@ -34,7 +37,7 @@ export async function getAppSettings(db: DatabasePort): Promise<AppSettings> {
   const rows = await db.select<AppSettingsRow>(
     `SELECT rounding_mode, document_number_prefix_estimate, document_number_prefix_invoice,
             document_number_prefix_delivery, document_number_prefix_receipt, theme, ai_enabled,
-            ai_model, onboarding_completed, onboarding_step
+            ai_model, onboarding_completed, onboarding_step, feature_flags_json
      FROM app_settings WHERE id = 1`,
   );
   const row = rows[0];

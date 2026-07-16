@@ -1,3 +1,4 @@
+import type { FeatureFlags } from "@/domain/shared/feature-flags";
 import type { RoundingMode } from "@/domain/tax/types";
 
 export interface AppSettings {
@@ -11,6 +12,7 @@ export interface AppSettings {
   aiModel: string;
   onboardingCompleted: boolean;
   onboardingStep: string;
+  featureFlags: FeatureFlags;
 }
 
 export type AppSettingsInput = Partial<AppSettings>;

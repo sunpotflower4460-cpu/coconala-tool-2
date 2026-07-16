@@ -39,14 +39,15 @@
   - `APPLE_CERTIFICATE` / `APPLE_CERTIFICATE_PASSWORD` / `APPLE_SIGNING_IDENTITY`
   - `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID`
   - `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
-- [ ] Tauri Updater用の署名鍵ペアを生成し、秘密鍵をリポジトリに含めず安全に保管する
-- [ ] 更新ファイルの配置先(ダウンロード提供先)を決定する
+- [ ] Tauri Updater用の署名鍵ペアを`pnpm tauri signer generate -w ~/.tauri/mitsumori-desk.key`等で生成し、秘密鍵をリポジトリに含めず安全に保管する(公開鍵は`tauri.conf.json`の`plugins.updater.pubkey`へ設定する)
+- [ ] 更新ファイル(`latest.json`)の配置先(ダウンロード提供先)を決定し、`tauri.conf.json`の`plugins.updater.endpoints`へ設定する
+- [ ] 上記が揃ったら`tauri-plugin-updater`をCargo依存へ追加し、`src/infrastructure/updates/`に実装(例: `TauriUpdateCheck`)を追加して`notConfiguredUpdateCheck`を差し替える(境界はADR 0008を参照。設計上、置き換えは小さな変更で済むはず)
 - [ ] GitHub Releaseのdraftを確認し、内容に問題なければ本番公開する(公開はCIでは自動化しない)
 
 ## Phase 6 (販売)
 
 - [ ] `LICENSE`の権利者名と正式なライセンス文言を確定する(現状は暫定の全著作権留保表記)
-- [ ] 販売者情報・特定商取引法に基づく表示を確定する
+- [ ] 販売者情報・特定商取引法に基づく表示を確定する。確定したら`src-tauri/tauri.conf.json`の`bundle.publisher`・`bundle.copyright`にも反映する(現在は未設定)
 - [ ] 利用規約・免責事項の最終法的確認を行う
 - [ ] ココナラの商品ページを作成・公開する
 - [ ] ベータ利用者(5〜10人)を募集する

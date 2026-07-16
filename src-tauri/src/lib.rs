@@ -25,6 +25,12 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/0003_practice_data_and_onboarding_step.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 4,
+            description: "feature_flags",
+            sql: include_str!("../migrations/0004_feature_flags.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -103,5 +109,11 @@ mod tests {
                 "migration is missing is_practice_data column on: {table}"
             );
         }
+    }
+
+    #[test]
+    fn fourth_migration_adds_feature_flags_column() {
+        let sql = &migrations()[3].sql;
+        assert!(sql.contains("ALTER TABLE app_settings ADD COLUMN feature_flags_json"));
     }
 }
