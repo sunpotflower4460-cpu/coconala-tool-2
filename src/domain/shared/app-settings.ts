@@ -10,6 +10,7 @@ export interface AppSettings {
   aiEnabled: boolean;
   aiModel: string;
   onboardingCompleted: boolean;
+  onboardingStep: string;
 }
 
 export type AppSettingsInput = Partial<AppSettings>;

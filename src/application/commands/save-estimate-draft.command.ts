@@ -1,4 +1,5 @@
-import type { DatabasePort } from "@/application/ports/database";
+import type { DatabasePort, TransactionStatement } from "@/application/ports/database";
+import { refPreviousInsertId } from "@/application/ports/database";
 import { toAppError, type AppError } from "@/application/errors";
 import { getAppSettings } from "@/application/queries/get-app-settings.query";
 import { getDocumentDraft } from "@/application/queries/get-document-draft.query";
@@ -52,16 +53,16 @@ export async function saveEstimateDraft(
     );
 
     const now = new Date().toISOString();
-    await db.execute("BEGIN");
+    const statements: TransactionStatement[] = [];
+    let documentIdParam: number | { $ref: number };
 
-    let documentId: number;
     if (input.id === null) {
-      const result = await db.execute(
-        `INSERT INTO documents (
+      statements.push({
+        sql: `INSERT INTO documents (
            document_type, status, client_id, issue_date, due_date, valid_until, pricing_type,
            rounding_mode, discount_yen, subtotal_yen, tax_yen, total_yen, note, created_at, updated_at
          ) VALUES ('estimate', 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
+        params: [
           input.clientId,
           input.issueDate,
           input.dueDate,
@@ -76,24 +77,23 @@ export async function saveEstimateDraft(
           now,
           now,
         ],
-      );
-      documentId = result.lastInsertId;
+      });
+      documentIdParam = refPreviousInsertId(0);
     } else {
       const existing = await getDocumentDraft(db, input.id);
       if (!existing || !isEditableStatus(existing.header.status)) {
-        await db.execute("ROLLBACK");
         return err({
           code: "not_editable",
           message: "この見積は編集できません(発行済みの可能性があります)",
         });
       }
-      await db.execute(
-        `UPDATE documents SET
+      statements.push({
+        sql: `UPDATE documents SET
            client_id = ?, issue_date = ?, due_date = ?, valid_until = ?, pricing_type = ?,
            rounding_mode = ?, discount_yen = ?, subtotal_yen = ?, tax_yen = ?, total_yen = ?,
            note = ?, updated_at = ?
          WHERE id = ? AND status = 'draft'`,
-        [
+        params: [
           input.clientId,
           input.issueDate,
           input.dueDate,
@@ -108,19 +108,22 @@ export async function saveEstimateDraft(
           now,
           input.id,
         ],
-      );
-      documentId = input.id;
-      await db.execute(`DELETE FROM document_lines WHERE document_id = ?`, [documentId]);
+      });
+      statements.push({
+        sql: `DELETE FROM document_lines WHERE document_id = ?`,
+        params: [input.id],
+      });
+      documentIdParam = input.id;
     }
 
     for (const [index, line] of input.lines.entries()) {
-      await db.execute(
-        `INSERT INTO document_lines (
+      statements.push({
+        sql: `INSERT INTO document_lines (
            document_id, sort_order, catalog_item_id, name, description, unit, quantity,
            unit_price_yen, tax_category, line_discount_yen, amount_yen
          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          documentId,
+        params: [
+          documentIdParam,
           index,
           line.catalogItemId,
           line.name,
@@ -132,10 +135,11 @@ export async function saveEstimateDraft(
           line.lineDiscountYen,
           totals.lines[index]?.amountYen ?? 0,
         ],
-      );
+      });
     }
 
-    await db.execute("COMMIT");
+    const results = await db.executeTransaction(statements);
+    const documentId = input.id === null ? (results[0]?.lastInsertId ?? 0) : input.id;
 
     const saved = await getDocumentDraft(db, documentId);
     if (!saved) {
@@ -143,7 +147,6 @@ export async function saveEstimateDraft(
     }
     return ok(saved);
   } catch (error) {
-    await db.execute("ROLLBACK").catch(() => undefined);
     return err(toAppError(error, "見積の保存に失敗しました"));
   }
 }

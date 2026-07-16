@@ -1,5 +1,6 @@
-import type { DatabasePort } from "@/application/ports/database";
-import { recordDocumentEvent } from "@/application/commands/document-events.helper";
+import type { DatabasePort, TransactionStatement } from "@/application/ports/database";
+import { documentEventStatement } from "@/application/commands/document-events.helper";
+import { refPreviousInsertId } from "@/application/ports/database";
 import { toAppError, type AppError } from "@/application/errors";
 import { getDocument, type DocumentDetail } from "@/application/queries/get-document.query";
 import { err, ok, type Result } from "@/lib/result";
@@ -16,36 +17,37 @@ export async function duplicateDocument(
     }
 
     const now = new Date().toISOString();
-    await db.execute("BEGIN");
-    const inserted = await db.execute(
-      `INSERT INTO documents (
-         document_type, status, client_id, pricing_type, rounding_mode, discount_yen,
-         subtotal_yen, tax_yen, total_yen, note, created_at, updated_at
-       ) VALUES (?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        source.documentType,
-        source.clientId,
-        source.pricingType,
-        source.roundingMode,
-        source.discountYen,
-        source.subtotalYen,
-        source.taxYen,
-        source.totalYen,
-        source.note,
-        now,
-        now,
-      ],
-    );
-    const newId = inserted.lastInsertId;
+    const statements: TransactionStatement[] = [
+      {
+        sql: `INSERT INTO documents (
+           document_type, status, client_id, pricing_type, rounding_mode, discount_yen,
+           subtotal_yen, tax_yen, total_yen, note, created_at, updated_at
+         ) VALUES (?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        params: [
+          source.documentType,
+          source.clientId,
+          source.pricingType,
+          source.roundingMode,
+          source.discountYen,
+          source.subtotalYen,
+          source.taxYen,
+          source.totalYen,
+          source.note,
+          now,
+          now,
+        ],
+      },
+    ];
+    const newDocumentIdRef = refPreviousInsertId(0);
 
     for (const [index, line] of source.lines.entries()) {
-      await db.execute(
-        `INSERT INTO document_lines (
+      statements.push({
+        sql: `INSERT INTO document_lines (
            document_id, sort_order, catalog_item_id, name, description, unit, quantity,
            unit_price_yen, tax_category, line_discount_yen, amount_yen
          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          newId,
+        params: [
+          newDocumentIdRef,
           index,
           line.catalogItemId,
           line.name,
@@ -57,11 +59,21 @@ export async function duplicateDocument(
           line.lineDiscountYen,
           0,
         ],
-      );
+      });
     }
 
-    await recordDocumentEvent(db, newId, "duplicated", null, "draft", `複製元ID: ${source.id}`);
-    await db.execute("COMMIT");
+    statements.push(
+      documentEventStatement(
+        newDocumentIdRef,
+        "duplicated",
+        null,
+        "draft",
+        `複製元ID: ${source.id}`,
+      ),
+    );
+
+    const results = await db.executeTransaction(statements);
+    const newId = results[0]?.lastInsertId ?? 0;
 
     const created = await getDocument(db, newId);
     if (!created) {
@@ -69,7 +81,6 @@ export async function duplicateDocument(
     }
     return ok(created);
   } catch (error) {
-    await db.execute("ROLLBACK").catch(() => undefined);
     return err(toAppError(error, "複製に失敗しました"));
   }
 }

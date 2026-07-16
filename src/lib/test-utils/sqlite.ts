@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
-import type { DatabasePort } from "@/application/ports/database";
+import type { DatabasePort, TransactionStatement } from "@/application/ports/database";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = path.resolve(currentDir, "../../../src-tauri/migrations");
@@ -41,6 +41,25 @@ export function createTestDatabase(dbPath = ":memory:"): DatabasePort {
     },
     select<T>(sql: string, params: unknown[] = []) {
       return Promise.resolve(db.prepare(sql).all(...params) as T[]);
+    },
+    executeTransaction(statements: TransactionStatement[]) {
+      const runAll = db.transaction((stmts: TransactionStatement[]) => {
+        const results: { rowsAffected: number; lastInsertId: number }[] = [];
+        for (const statement of stmts) {
+          const resolvedParams = (statement.params ?? []).map((param) => {
+            if (param !== null && typeof param === "object" && "$ref" in param) {
+              const index = (param as { $ref: number }).$ref;
+              return results[index]?.lastInsertId ?? null;
+            }
+            return param;
+          });
+          const info = db.prepare(statement.sql).run(...resolvedParams);
+          results.push({ rowsAffected: info.changes, lastInsertId: Number(info.lastInsertRowid) });
+        }
+        return results;
+      });
+      // db.transaction()は例外を同期的に投げるため、Promiseの拒否として伝播させる。
+      return Promise.resolve().then(() => runAll(statements));
     },
   };
 }

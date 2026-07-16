@@ -19,6 +19,12 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/0002_ai_settings_and_extractions.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 3,
+            description: "practice_data_and_onboarding_step",
+            sql: include_str!("../migrations/0003_practice_data_and_onboarding_step.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -36,6 +42,12 @@ pub fn run() {
             commands::secrets::secret_get,
             commands::secrets::secret_set,
             commands::secrets::secret_delete,
+            commands::backup::backup_database,
+            commands::backup::list_backups,
+            commands::backup::restore_database,
+            commands::diagnostics::get_system_diagnostics,
+            commands::diagnostics::write_text_file,
+            commands::transaction::execute_transaction,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -79,5 +91,17 @@ mod tests {
         let sql = &migrations()[1].sql;
         assert!(sql.contains("CREATE TABLE ai_extractions"));
         assert!(sql.contains("ALTER TABLE app_settings ADD COLUMN ai_model"));
+    }
+
+    #[test]
+    fn third_migration_adds_practice_data_flags_and_onboarding_step() {
+        let sql = &migrations()[2].sql;
+        assert!(sql.contains("ALTER TABLE app_settings ADD COLUMN onboarding_step"));
+        for table in ["companies", "clients", "catalog_items", "documents"] {
+            assert!(
+                sql.contains(&format!("ALTER TABLE {table} ADD COLUMN is_practice_data")),
+                "migration is missing is_practice_data column on: {table}"
+            );
+        }
     }
 }

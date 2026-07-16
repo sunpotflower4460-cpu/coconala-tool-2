@@ -1,5 +1,6 @@
-import type { DatabasePort } from "@/application/ports/database";
-import { recordDocumentEvent } from "@/application/commands/document-events.helper";
+import type { DatabasePort, TransactionStatement } from "@/application/ports/database";
+import { documentEventStatement } from "@/application/commands/document-events.helper";
+import { refPreviousInsertId } from "@/application/ports/database";
 import { toAppError, type AppError } from "@/application/errors";
 import { getDocument, type DocumentDetail } from "@/application/queries/get-document.query";
 import { canConvertDocument, isConvertibleStatus } from "@/domain/documents/conversion";
@@ -50,37 +51,38 @@ export async function convertDocument(
     );
 
     const now = new Date().toISOString();
-    await db.execute("BEGIN");
-    const inserted = await db.execute(
-      `INSERT INTO documents (
-         document_type, status, client_id, pricing_type, rounding_mode, discount_yen,
-         subtotal_yen, tax_yen, total_yen, note, source_document_id, created_at, updated_at
-       ) VALUES (?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        targetType,
-        source.clientId,
-        source.pricingType,
-        source.roundingMode,
-        source.discountYen,
-        totals.subtotalYen,
-        totals.taxYen,
-        totals.totalYen,
-        source.note,
-        source.id,
-        now,
-        now,
-      ],
-    );
-    const newId = inserted.lastInsertId;
+    const statements: TransactionStatement[] = [
+      {
+        sql: `INSERT INTO documents (
+           document_type, status, client_id, pricing_type, rounding_mode, discount_yen,
+           subtotal_yen, tax_yen, total_yen, note, source_document_id, created_at, updated_at
+         ) VALUES (?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        params: [
+          targetType,
+          source.clientId,
+          source.pricingType,
+          source.roundingMode,
+          source.discountYen,
+          totals.subtotalYen,
+          totals.taxYen,
+          totals.totalYen,
+          source.note,
+          source.id,
+          now,
+          now,
+        ],
+      },
+    ];
+    const newDocumentIdRef = refPreviousInsertId(0);
 
     for (const [index, line] of source.lines.entries()) {
-      await db.execute(
-        `INSERT INTO document_lines (
+      statements.push({
+        sql: `INSERT INTO document_lines (
            document_id, sort_order, catalog_item_id, name, description, unit, quantity,
            unit_price_yen, tax_category, line_discount_yen, amount_yen
          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          newId,
+        params: [
+          newDocumentIdRef,
           index,
           line.catalogItemId,
           line.name,
@@ -92,42 +94,52 @@ export async function convertDocument(
           line.lineDiscountYen,
           totals.lines[index]?.amountYen ?? 0,
         ],
-      );
+      });
     }
 
     const autoStatus = autoSourceStatusAfterConversion(source.documentType, targetType);
     if (autoStatus && canTransitionDocumentStatus(source.status, autoStatus)) {
-      await db.execute(
-        `UPDATE documents SET status = ?, updated_at = ? WHERE id = ? AND status = ?`,
-        [autoStatus, now, source.id, source.status],
-      );
-      await recordDocumentEvent(
-        db,
-        source.id,
-        "status_change",
-        source.status,
-        autoStatus,
-        "変換に伴う自動更新",
+      statements.push({
+        sql: `UPDATE documents SET status = ?, updated_at = ? WHERE id = ? AND status = ?`,
+        params: [autoStatus, now, source.id, source.status],
+      });
+      statements.push(
+        documentEventStatement(
+          source.id,
+          "status_change",
+          source.status,
+          autoStatus,
+          "変換に伴う自動更新",
+        ),
       );
     }
 
-    await recordDocumentEvent(
-      db,
-      source.id,
-      `converted_to_${targetType}`,
-      source.status,
-      source.status,
-      `変換先の書類ID: ${newId}`,
+    statements.push(
+      documentEventStatement(
+        newDocumentIdRef,
+        "created_from_conversion",
+        null,
+        "draft",
+        `変換元: ${source.documentType} ID:${source.id}`,
+      ),
     );
-    await recordDocumentEvent(
-      db,
-      newId,
-      "created_from_conversion",
-      null,
-      "draft",
-      `変換元: ${source.documentType} ID:${source.id}`,
+
+    const results = await db.executeTransaction(statements);
+    const newId = results[0]?.lastInsertId ?? 0;
+
+    // 変換先IDは変換完了後でないと確定しないため、この記録だけはトランザクション外で追記する。
+    await db.execute(
+      `INSERT INTO document_events (document_id, event_type, from_status, to_status, note, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        source.id,
+        `converted_to_${targetType}`,
+        source.status,
+        source.status,
+        `変換先の書類ID: ${newId}`,
+        now,
+      ],
     );
-    await db.execute("COMMIT");
 
     const created = await getDocument(db, newId);
     if (!created) {
@@ -135,7 +147,6 @@ export async function convertDocument(
     }
     return ok(created);
   } catch (error) {
-    await db.execute("ROLLBACK").catch(() => undefined);
     return err(toAppError(error, "変換に失敗しました"));
   }
 }

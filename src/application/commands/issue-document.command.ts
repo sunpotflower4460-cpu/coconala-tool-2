@@ -1,5 +1,5 @@
-import type { DatabasePort } from "@/application/ports/database";
-import { recordDocumentEvent } from "@/application/commands/document-events.helper";
+import type { DatabasePort, TransactionStatement } from "@/application/ports/database";
+import { documentEventStatement } from "@/application/commands/document-events.helper";
 import { toAppError, type AppError } from "@/application/errors";
 import { getAppSettings } from "@/application/queries/get-app-settings.query";
 import { getCompany } from "@/application/queries/get-company.query";
@@ -87,29 +87,30 @@ export async function issueDocument(
     });
 
     const now = new Date().toISOString();
-    await db.execute("BEGIN");
-    await db.execute(
-      `UPDATE documents SET
-         status = 'issued', document_number = ?, issue_date = ?, subtotal_yen = ?, tax_yen = ?,
-         total_yen = ?, company_snapshot_json = ?, client_snapshot_json = ?,
-         calculation_snapshot_json = ?, issued_at = ?, updated_at = ?
-       WHERE id = ? AND status = 'draft'`,
-      [
-        documentNumber,
-        issueDate,
-        totals.subtotalYen,
-        totals.taxYen,
-        totals.totalYen,
-        JSON.stringify(company),
-        JSON.stringify(client),
-        JSON.stringify(calculationSnapshot),
-        now,
-        now,
-        id,
-      ],
-    );
-    await recordDocumentEvent(db, id, "issue", document.status, "issued");
-    await db.execute("COMMIT");
+    const statements: TransactionStatement[] = [
+      {
+        sql: `UPDATE documents SET
+           status = 'issued', document_number = ?, issue_date = ?, subtotal_yen = ?, tax_yen = ?,
+           total_yen = ?, company_snapshot_json = ?, client_snapshot_json = ?,
+           calculation_snapshot_json = ?, issued_at = ?, updated_at = ?
+         WHERE id = ? AND status = 'draft'`,
+        params: [
+          documentNumber,
+          issueDate,
+          totals.subtotalYen,
+          totals.taxYen,
+          totals.totalYen,
+          JSON.stringify(company),
+          JSON.stringify(client),
+          JSON.stringify(calculationSnapshot),
+          now,
+          now,
+          id,
+        ],
+      },
+      documentEventStatement(id, "issue", document.status, "issued"),
+    ];
+    await db.executeTransaction(statements);
 
     const issued = await getDocument(db, id);
     if (!issued) {
@@ -117,7 +118,6 @@ export async function issueDocument(
     }
     return ok(issued);
   } catch (error) {
-    await db.execute("ROLLBACK").catch(() => undefined);
     return err(toAppError(error, "発行処理に失敗しました"));
   }
 }

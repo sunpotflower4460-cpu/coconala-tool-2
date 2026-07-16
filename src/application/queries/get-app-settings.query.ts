@@ -12,6 +12,7 @@ interface AppSettingsRow {
   ai_enabled: number;
   ai_model: string;
   onboarding_completed: number;
+  onboarding_step: string;
 }
 
 function mapAppSettingsRow(row: AppSettingsRow): AppSettings {
@@ -25,6 +26,7 @@ function mapAppSettingsRow(row: AppSettingsRow): AppSettings {
     aiEnabled: row.ai_enabled === 1,
     aiModel: row.ai_model,
     onboardingCompleted: row.onboarding_completed === 1,
+    onboardingStep: row.onboarding_step,
   };
 }
 
@@ -32,7 +34,7 @@ export async function getAppSettings(db: DatabasePort): Promise<AppSettings> {
   const rows = await db.select<AppSettingsRow>(
     `SELECT rounding_mode, document_number_prefix_estimate, document_number_prefix_invoice,
             document_number_prefix_delivery, document_number_prefix_receipt, theme, ai_enabled,
-            ai_model, onboarding_completed
+            ai_model, onboarding_completed, onboarding_step
      FROM app_settings WHERE id = 1`,
   );
   const row = rows[0];

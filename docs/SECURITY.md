@@ -33,7 +33,7 @@ OS標準の資格情報ストア(macOS Keychain / Windows Credential Manager / L
 
 含めてはいけない: APIキー、顧客名・住所・メール、問い合わせ本文、書類明細、振込先、ローカルファイルのフルパス。
 
-診断ファイル生成後、禁止文字列・秘密情報パターン(APIキーらしき文字列等)を自動検査してから保存する(Phase 4で`scripts/redact-diagnostic-fixture.mjs`相当のロジックを実装)。
+診断ファイルは件数・バージョン等の集計値のみから構成し(`build-diagnostics-report.command.ts`)、生成後に`src/domain/diagnostics/secret-scan.ts`の禁止文字列・秘密情報パターン検査(APIキーらしき文字列・メールアドレス・長いbase64風文字列)を通過した場合のみ保存する(`save-diagnostics-report.command.ts`)。検査に引っかかった場合は保存を中止する。
 
 ## ログ方針
 

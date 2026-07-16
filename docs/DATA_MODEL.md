@@ -205,3 +205,17 @@ Phase 1〜2時点のSQLiteスキーマ。実体は`src-tauri/migrations/0001_ini
 変換元は`issued`以降の状態のみ許可する(`draft`は変換不可)。変換すると明細を複製した新しい`draft`書類(`source_document_id`に変換元IDを保持)を作る。加えて、見積→請求書の変換は変換元の見積を`invoiced`へ、請求書→領収書の変換は変換元の請求書を`paid`へ、それぞれ可能な場合のみ自動的に進める(`src/application/commands/convert-document.command.ts`)。
 
 複製(`duplicate-document.command.ts`)は状態を問わず、番号やスナップショットを持たない新しい`draft`を同じ種類で作る。
+
+## 練習モード・初回案内の再開(Phase 4)
+
+`companies` / `clients` / `catalog_items` / `documents`には`is_practice_data`列(0/1)がある。練習モード(`seed-practice-data.command.ts`)が作成した行のみ1になり、「練習データを一括削除」(`delete-practice-data.command.ts`)は`is_practice_data = 1`の行だけを削除する。実際に登録したデータには一切触れない。会社情報は既に登録済みの場合は上書きしない(companiesは`id = 1`の単一行のため)。
+
+`app_settings.onboarding_step`は初回案内ウィザードの現在のステップを保持し、アプリを閉じて再度開いても続きから再開できるようにする。
+
+## バックアップ(Phase 4)
+
+`<アプリの設定フォルダ>/backups/`配下に、DBファイルのコピー(および存在する場合は`-wal`/`-shm`/`-journal`)をタイムスタンプ付きファイル名で保存する。復元前には必ず現在のDBを同じ場所へ自動退避し、復元に失敗した場合はその退避データへロールバックする(`src-tauri/src/commands/backup.rs`)。バックアップの内容検証は`PRAGMA integrity_check`と`app_settings`テーブルの存在確認で行う。詳細はADR 0007を参照。
+
+## 複数SQL文の原子的な書き込み(Phase 4)
+
+見積の保存、発行、変換、複製、状態変更、練習データ削除など、複数のSQL文をまたぐ書き込みは`DatabasePort.executeTransaction`を使う。`tauri-plugin-sql`のコネクションプールでは個別の`execute`呼び出しをまたぐ`BEGIN`/`COMMIT`が原子性を保証できないため、専用のRustコマンド(`execute_transaction`)が1本のSQLite接続でトランザクションを完結させる。詳細な経緯はADR 0007を参照。

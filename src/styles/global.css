@@ -300,6 +300,27 @@ td {
   color: var(--color-danger);
 }
 
+.hint {
+  color: #555;
+  font-size: 0.9em;
+}
+
+.onboarding-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  font-size: 0.9em;
+  color: #555;
+}
+
+.onboarding-progress li[aria-current="step"] {
+  font-weight: bold;
+  color: var(--color-focus);
+}
+
 @media print {
   .no-print {
     display: none !important;

@@ -24,6 +24,7 @@ export async function updateAppSettings(
          ai_enabled = ?,
          ai_model = ?,
          onboarding_completed = ?,
+         onboarding_step = ?,
          updated_at = ?
        WHERE id = 1`,
       [
@@ -36,6 +37,7 @@ export async function updateAppSettings(
         next.aiEnabled ? 1 : 0,
         next.aiModel,
         next.onboardingCompleted ? 1 : 0,
+        next.onboardingStep,
         now,
       ],
     );
