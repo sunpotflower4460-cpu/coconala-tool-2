@@ -22,6 +22,7 @@ export async function updateAppSettings(
          document_number_prefix_receipt = ?,
          theme = ?,
          ai_enabled = ?,
+         ai_model = ?,
          onboarding_completed = ?,
          updated_at = ?
        WHERE id = 1`,
@@ -33,6 +34,7 @@ export async function updateAppSettings(
         next.documentNumberPrefixReceipt,
         next.theme,
         next.aiEnabled ? 1 : 0,
+        next.aiModel,
         next.onboardingCompleted ? 1 : 0,
         now,
       ],

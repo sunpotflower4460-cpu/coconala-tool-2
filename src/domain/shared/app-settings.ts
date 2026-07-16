@@ -8,6 +8,7 @@ export interface AppSettings {
   documentNumberPrefixReceipt: string;
   theme: "system" | "light" | "dark";
   aiEnabled: boolean;
+  aiModel: string;
   onboardingCompleted: boolean;
 }
 

@@ -10,6 +10,7 @@ interface AppSettingsRow {
   document_number_prefix_receipt: string;
   theme: string;
   ai_enabled: number;
+  ai_model: string;
   onboarding_completed: number;
 }
 
@@ -22,6 +23,7 @@ function mapAppSettingsRow(row: AppSettingsRow): AppSettings {
     documentNumberPrefixReceipt: row.document_number_prefix_receipt,
     theme: row.theme === "light" || row.theme === "dark" ? row.theme : "system",
     aiEnabled: row.ai_enabled === 1,
+    aiModel: row.ai_model,
     onboardingCompleted: row.onboarding_completed === 1,
   };
 }
@@ -30,7 +32,7 @@ export async function getAppSettings(db: DatabasePort): Promise<AppSettings> {
   const rows = await db.select<AppSettingsRow>(
     `SELECT rounding_mode, document_number_prefix_estimate, document_number_prefix_invoice,
             document_number_prefix_delivery, document_number_prefix_receipt, theme, ai_enabled,
-            onboarding_completed
+            ai_model, onboarding_completed
      FROM app_settings WHERE id = 1`,
   );
   const row = rows[0];

@@ -10,6 +10,8 @@
   --color-bg-muted: #f5f5f5;
   --color-danger: #b3261e;
   --color-focus: #1a5fb4;
+  --color-success: #1b6e2c;
+  --color-warning: #8a6100;
 }
 
 * {
@@ -274,6 +276,28 @@ td {
 
 .print-note {
   margin-top: 2rem;
+}
+
+/* AI照合状態(緑・黄・赤)。色だけに頼らずアイコン相当の文字ラベルを併記する。 */
+.match-status {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-weight: bold;
+  font-size: 0.85rem;
+  border: 1px solid currentColor;
+}
+
+.match-status--matched {
+  color: var(--color-success);
+}
+
+.match-status--review {
+  color: var(--color-warning);
+}
+
+.match-status--unresolved {
+  color: var(--color-danger);
 }
 
 @media print {

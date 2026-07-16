@@ -13,7 +13,7 @@
 
 ## APIキーの保存方法
 
-OS標準の資格情報ストア(macOS Keychain / Windows Credential Manager)をTauri経由で利用する。Phase 3で`application/ports/secret-store.ts`と`infrastructure/secrets/`を実装する際、この方針を踏襲する。
+OS標準の資格情報ストア(macOS Keychain / Windows Credential Manager / Linuxのsecret service)を、Rust側の`keyring`クレート経由で利用する(`src-tauri/src/commands/secrets.rs`)。フロントエンドは`application/ports/secret-store.ts`(`SecretStore`)経由でのみアクセスし、`infrastructure/secrets/tauri-secret-store.ts`が実装を提供する。APIキーの値そのものはRust側コマンドの引数・戻り値としてのみ受け渡し、SQLite・localStorage・ログへは書き込まない。
 
 ## 通信
 

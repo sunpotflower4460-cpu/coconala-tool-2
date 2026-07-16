@@ -9,7 +9,9 @@ const NAV_ITEMS = [
   { to: "/invoices", label: "請求書" },
   { to: "/deliveries", label: "納品書" },
   { to: "/receipts", label: "領収書" },
+  { to: "/inquiries", label: "問い合わせ読み取り" },
   { to: "/settings/company", label: "会社情報" },
+  { to: "/settings/ai", label: "AI設定" },
 ];
 
 export function AppLayout() {

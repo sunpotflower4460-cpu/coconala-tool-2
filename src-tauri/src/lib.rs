@@ -1,15 +1,25 @@
+mod commands;
+
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 // sqlxはforeign_keysプラグマを既定でONにするため、接続文字列での指定は不要。
 const DB_URL: &str = "sqlite:mitsumori-desk.db?mode=rwc";
 
 fn migrations() -> Vec<Migration> {
-    vec![Migration {
-        version: 1,
-        description: "initial",
-        sql: include_str!("../migrations/0001_initial.sql"),
-        kind: MigrationKind::Up,
-    }]
+    vec![
+        Migration {
+            version: 1,
+            description: "initial",
+            sql: include_str!("../migrations/0001_initial.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 2,
+            description: "ai_settings_and_extractions",
+            sql: include_str!("../migrations/0002_ai_settings_and_extractions.sql"),
+            kind: MigrationKind::Up,
+        },
+    ]
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -22,6 +32,11 @@ pub fn run() {
                 .add_migrations(DB_URL, migrations())
                 .build(),
         )
+        .invoke_handler(tauri::generate_handler![
+            commands::secrets::secret_get,
+            commands::secrets::secret_set,
+            commands::secrets::secret_delete,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -57,5 +72,12 @@ mod tests {
                 "migration is missing table: {table}"
             );
         }
+    }
+
+    #[test]
+    fn second_migration_adds_ai_extractions_table() {
+        let sql = &migrations()[1].sql;
+        assert!(sql.contains("CREATE TABLE ai_extractions"));
+        assert!(sql.contains("ALTER TABLE app_settings ADD COLUMN ai_model"));
     }
 }

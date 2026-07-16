@@ -5,11 +5,13 @@ import { CatalogFormPage } from "@/features/catalog/CatalogFormPage";
 import { CatalogListPage } from "@/features/catalog/CatalogListPage";
 import { ClientFormPage } from "@/features/clients/ClientFormPage";
 import { ClientListPage } from "@/features/clients/ClientListPage";
+import { AiSettingsPage } from "@/features/ai-settings/AiSettingsPage";
 import { CompanySettingsPage } from "@/features/companies/CompanySettingsPage";
 import { DocumentDetailPage } from "@/features/document-preview/DocumentDetailPage";
 import { DocumentPrintPage } from "@/features/document-preview/DocumentPrintPage";
 import { DocumentListPage } from "@/features/documents/DocumentListPage";
 import { EstimateEditorPage } from "@/features/estimates/EstimateEditorPage";
+import { InquiryExtractionPage } from "@/features/inquiries/InquiryExtractionPage";
 import { OnboardingWizard } from "@/features/onboarding/OnboardingWizard";
 import { RequireDatabase } from "@/infrastructure/database/RequireDatabase";
 
@@ -48,7 +50,9 @@ const router = createBrowserRouter([
       { path: "deliveries", element: <DocumentListPage documentType="delivery_note" /> },
       { path: "receipts", element: <DocumentListPage documentType="receipt" /> },
       { path: "documents/:id", element: <DocumentDetailPage /> },
+      { path: "inquiries", element: <InquiryExtractionPage /> },
       { path: "settings/company", element: <CompanySettingsPage /> },
+      { path: "settings/ai", element: <AiSettingsPage /> },
     ],
   },
 ]);

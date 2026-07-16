@@ -19,6 +19,11 @@
 
 - [ ] macOS・Windows実機で日本語フォントのPDF出力を目視確認する
 
+## Phase 3 (AI連携)
+
+- [ ] Linux版を配布する場合、対象環境にD-Busセッションバス+Secret Service準拠のキーリング(GNOME Keyring/KWalletなど)が起動していることを起動時に確認するか、案内文をREADMEへ追加する(macOS/WindowsはOS標準の資格情報ストアを使うため対象外。開発コンテナ内ではD-Bus不在のためAPIキー保存が失敗することを`gnome-keyring`導入とD-Bus手動起動で検証済み)
+- [ ] 実際のAnthropic APIキーを用いた「接続を確認」ボタンの動作を、契約者本人の環境で最終確認する(本開発では自動テストとモック応答のみで検証)
+
 ## Phase 4 (商品化)
 
 - [ ] 初心者5人への操作テストを手配し、観察記録を取る
