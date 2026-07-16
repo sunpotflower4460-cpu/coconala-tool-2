@@ -37,6 +37,9 @@
 - Phase 5: JSON列によるFeature Flag基盤(`app_settings.feature_flags_json`、スキーマ変更なしでフラグを追加可能)
 - Phase 5: リリース前のバージョン整合性チェック(`pnpm check:release`)、`docs/RELEASE_PROCESS.md`の具体化
 - Phase 5: unit test 12件追加(計144件)
+- Phase 6: 初回設定ガイド(`docs/QUICK_START_GUIDE.md`)・利用マニュアル下書き(`docs/USER_MANUAL.md`)
+- Phase 6: 利用規約・免責事項の下書き(`docs/TERMS_OF_SERVICE_DRAFT.md`・`docs/DISCLAIMER_DRAFT.md`、要専門家レビュー)
+- Phase 6: ベータテスト観察シート(`docs/BETA_TEST_OBSERVATION_SHEET.md`)
 
 ### Fixed
 
