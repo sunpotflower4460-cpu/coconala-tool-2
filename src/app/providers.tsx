@@ -1,13 +1,10 @@
 import type { ReactNode } from "react";
+import { DatabaseProvider } from "@/infrastructure/database/database-context";
 
 interface ProvidersProps {
   children: ReactNode;
 }
 
-/**
- * アプリ全体のcontext providerをまとめる場所。
- * Phase 1でDatabaseProviderをここへ追加する。
- */
 export function Providers({ children }: ProvidersProps) {
-  return <>{children}</>;
+  return <DatabaseProvider>{children}</DatabaseProvider>;
 }

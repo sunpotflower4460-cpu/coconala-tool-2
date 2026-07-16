@@ -1,0 +1,33 @@
+import { NavLink, Outlet } from "react-router-dom";
+import { RequireDatabase } from "@/infrastructure/database/RequireDatabase";
+
+const NAV_ITEMS = [
+  { to: "/", label: "ホーム", end: true },
+  { to: "/clients", label: "顧客" },
+  { to: "/catalog", label: "価格表" },
+  { to: "/estimates", label: "見積書" },
+  { to: "/settings/company", label: "会社情報" },
+];
+
+export function AppLayout() {
+  return (
+    <div className="app-shell">
+      <nav className="app-nav" aria-label="メインメニュー">
+        <ul>
+          {NAV_ITEMS.map((item) => (
+            <li key={item.to}>
+              <NavLink to={item.to} end={item.end}>
+                {item.label}
+              </NavLink>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      <main className="app-main">
+        <RequireDatabase>
+          <Outlet />
+        </RequireDatabase>
+      </main>
+    </div>
+  );
+}

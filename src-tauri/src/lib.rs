@@ -1,14 +1,61 @@
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+use tauri_plugin_sql::{Migration, MigrationKind};
+
+// sqlxはforeign_keysプラグマを既定でONにするため、接続文字列での指定は不要。
+const DB_URL: &str = "sqlite:mitsumori-desk.db?mode=rwc";
+
+fn migrations() -> Vec<Migration> {
+    vec![Migration {
+        version: 1,
+        description: "initial",
+        sql: include_str!("../migrations/0001_initial.sql"),
+        kind: MigrationKind::Up,
+    }]
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet])
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(
+            tauri_plugin_sql::Builder::default()
+                .add_migrations(DB_URL, migrations())
+                .build(),
+        )
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn migrations_are_numbered_sequentially_from_one() {
+        let list = migrations();
+        assert!(!list.is_empty());
+        for (index, migration) in list.iter().enumerate() {
+            assert_eq!(migration.version, (index + 1) as i64);
+        }
+    }
+
+    #[test]
+    fn initial_migration_creates_core_tables() {
+        let sql = &migrations()[0].sql;
+        for table in [
+            "companies",
+            "clients",
+            "catalog_items",
+            "catalog_aliases",
+            "documents",
+            "document_lines",
+            "document_events",
+            "app_settings",
+        ] {
+            assert!(
+                sql.contains(&format!("CREATE TABLE {table}")),
+                "migration is missing table: {table}"
+            );
+        }
+    }
 }
