@@ -1,0 +1,43 @@
+name: Security
+
+on:
+  pull_request:
+  schedule:
+    - cron: "0 3 * * 1"
+
+jobs:
+  dependency-audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: pnpm audit (high severity and above)
+        run: pnpm audit --audit-level=high
+        continue-on-error: true
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      - name: cargo audit
+        run: cargo audit --file src-tauri/Cargo.lock
+        continue-on-error: true
+
+  secret-scan:
+    name: Secret pattern scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reject committed API keys
+        run: |
+          if grep -RInE "(sk-[a-zA-Z0-9]{20,}|AIza[0-9A-Za-z_-]{35})" \
+            --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=target .; then
+            echo "APIキーらしき文字列が検出されました。" >&2
+            exit 1
+          fi

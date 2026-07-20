@@ -1,0 +1,342 @@
+:root {
+  color-scheme: light dark;
+  font-family:
+    "Hiragino Sans",
+    "Yu Gothic",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  --color-border: #d0d0d0;
+  --color-bg-muted: #f5f5f5;
+  --color-danger: #b3261e;
+  --color-focus: #1a5fb4;
+  --color-success: #1b6e2c;
+  --color-warning: #8a6100;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.app-nav {
+  width: 200px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--color-border);
+  padding: 1rem;
+}
+
+.app-nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.app-nav a {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.app-nav a.active {
+  background: var(--color-bg-muted);
+  font-weight: bold;
+}
+
+.app-main {
+  flex: 1;
+  padding: 2rem;
+  max-width: 960px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.field label {
+  font-weight: bold;
+}
+
+.field .hint {
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.field .field-error {
+  color: var(--color-danger);
+  font-size: 0.85rem;
+}
+
+.field input,
+.field select,
+.field textarea {
+  padding: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.button-danger {
+  background: var(--color-danger);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+}
+
+.save-status {
+  font-size: 0.9rem;
+}
+
+.save-status--error {
+  color: var(--color-danger);
+  font-weight: bold;
+}
+
+.error-banner {
+  background: #fdecea;
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+}
+
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dialog {
+  background: Canvas;
+  color: CanvasText;
+  border-radius: 8px;
+  padding: 1.5rem;
+  max-width: 400px;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+/* 帳票印刷プレビュー(ADR 0005: OS標準の印刷ダイアログでPDF保存する) */
+.print-toolbar {
+  padding: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.print-page {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 1rem auto;
+  padding: 15mm;
+  background: white;
+  color: black;
+  box-sizing: border-box;
+}
+
+.print-page table {
+  font-size: 0.9rem;
+}
+
+.print-page table thead {
+  display: table-header-group;
+}
+
+.print-page table tr {
+  break-inside: avoid;
+}
+
+.draft-watermark {
+  color: var(--color-danger);
+  font-weight: bold;
+  border: 2px solid var(--color-danger);
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+}
+
+.print-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 2px solid black;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.print-meta {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 0 0.75rem;
+  font-size: 0.85rem;
+}
+
+.print-meta dt {
+  font-weight: bold;
+}
+
+.print-meta dd {
+  margin: 0;
+}
+
+.print-parties {
+  display: flex;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: 1rem;
+}
+
+.print-client-name,
+.print-company-name {
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.print-total-highlight {
+  font-size: 1.4rem;
+  font-weight: bold;
+  margin: 1rem 0;
+}
+
+.print-lines th,
+.print-lines td {
+  border: 1px solid black;
+}
+
+.print-line-description {
+  font-size: 0.8rem;
+  color: #444;
+}
+
+.print-totals {
+  width: 40%;
+  margin-left: auto;
+  margin-top: 1rem;
+}
+
+.print-totals th,
+.print-totals td {
+  border: none;
+  text-align: right;
+}
+
+.print-totals th {
+  text-align: left;
+}
+
+.print-total-row th,
+.print-total-row td {
+  font-size: 1.1rem;
+  font-weight: bold;
+  border-top: 2px solid black;
+}
+
+.print-note {
+  margin-top: 2rem;
+}
+
+/* AI照合状態(緑・黄・赤)。色だけに頼らずアイコン相当の文字ラベルを併記する。 */
+.match-status {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-weight: bold;
+  font-size: 0.85rem;
+  border: 1px solid currentColor;
+}
+
+.match-status--matched {
+  color: var(--color-success);
+}
+
+.match-status--review {
+  color: var(--color-warning);
+}
+
+.match-status--unresolved {
+  color: var(--color-danger);
+}
+
+.hint {
+  color: #555;
+  font-size: 0.9em;
+}
+
+.onboarding-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  font-size: 0.9em;
+  color: #555;
+}
+
+.onboarding-progress li[aria-current="step"] {
+  font-weight: bold;
+  color: var(--color-focus);
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .app-nav {
+    display: none;
+  }
+
+  .print-page {
+    margin: 0;
+    box-shadow: none;
+  }
+
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+}
