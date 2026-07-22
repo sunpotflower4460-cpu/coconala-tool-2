@@ -45,9 +45,30 @@ export function HomePage() {
       {onboardingCompleted && (
         <div>
           <p>見積書: {recentEstimateCount ?? "-"}件</p>
-          <Link to="/estimates/new">
-            <button type="button">新しい見積書を作る</button>
-          </Link>
+
+          <h2>今日やること</h2>
+          <ul className="home-quick-actions">
+            <li>
+              <Link to="/estimates/new">
+                <button type="button">新しい見積を作る</button>
+              </Link>
+            </li>
+            <li>
+              <Link to="/inquiries">
+                <button type="button">問い合わせを読み取る</button>
+              </Link>
+            </li>
+            <li>
+              <Link to="/clients/new">
+                <button type="button">顧客を追加</button>
+              </Link>
+            </li>
+            <li>
+              <Link to="/csv-import">
+                <button type="button">価格表を取り込む</button>
+              </Link>
+            </li>
+          </ul>
         </div>
       )}
     </div>
