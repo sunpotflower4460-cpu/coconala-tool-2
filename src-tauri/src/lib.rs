@@ -51,6 +51,8 @@ pub fn run() {
             commands::backup::backup_database,
             commands::backup::list_backups,
             commands::backup::restore_database,
+            commands::backup::export_backup_to,
+            commands::backup::import_backup_from,
             commands::diagnostics::get_system_diagnostics,
             commands::diagnostics::write_text_file,
             commands::transaction::execute_transaction,
