@@ -104,6 +104,19 @@ async function callAnthropic(
     if (response.status === 401 || response.status === 403) {
       return err({ code: "invalid_api_key", message: "APIキーが正しくないか、権限がありません。" });
     }
+    if (response.status === 429) {
+      return err({
+        code: "rate_limited",
+        message:
+          "リクエストが多すぎるため、AIサービスから一時的に制限されています。しばらく待ってから再試行してください。",
+      });
+    }
+    if (response.status >= 500) {
+      return err({
+        code: "server_error",
+        message: `AIサービス側で問題が発生しています(status: ${response.status})。しばらく待ってから再試行してください。`,
+      });
+    }
     if (!response.ok) {
       return err({
         code: "unknown",

@@ -7,7 +7,14 @@ export interface ConnectionStatus {
 }
 
 export type AiErrorCode =
-  "network" | "timeout" | "cancelled" | "invalid_api_key" | "invalid_response" | "unknown";
+  | "network"
+  | "timeout"
+  | "cancelled"
+  | "invalid_api_key"
+  | "rate_limited"
+  | "server_error"
+  | "invalid_response"
+  | "unknown";
 
 export interface AiError {
   code: AiErrorCode;

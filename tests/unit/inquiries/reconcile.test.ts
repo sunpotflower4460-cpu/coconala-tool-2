@@ -51,6 +51,24 @@ describe("determineMatchStatus", () => {
     ).toBe("review");
   });
 
+  it("数量が0ならreview(AIが誤って0を返しても自動確定しない)", () => {
+    expect(
+      determineMatchStatus([{ catalogItemId: 1, confidence: 0.95, reason: "" }], 0, "本"),
+    ).toBe("review");
+  });
+
+  it("数量が負数ならreview", () => {
+    expect(
+      determineMatchStatus([{ catalogItemId: 1, confidence: 0.95, reason: "" }], -3, "本"),
+    ).toBe("review");
+  });
+
+  it("単位が不明(null)ならreview", () => {
+    expect(
+      determineMatchStatus([{ catalogItemId: 1, confidence: 0.95, reason: "" }], 3, null),
+    ).toBe("review");
+  });
+
   it("単一の高信頼度候補ならmatched", () => {
     expect(determineMatchStatus([{ catalogItemId: 1, confidence: 0.9, reason: "" }], 3, "本")).toBe(
       "matched",
