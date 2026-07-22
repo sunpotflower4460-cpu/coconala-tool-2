@@ -89,13 +89,16 @@ export function DocumentPrintLayout({
       <div className="print-parties">
         <div className="print-client">
           <p className="print-client-name">{client.name} 御中</p>
+          {client.postalCode && <p>〒{client.postalCode}</p>}
           {client.address && <p>{client.address}</p>}
         </div>
         <div className="print-company">
           <p className="print-company-name">{company.displayName}</p>
           {company.representativeName && <p>{company.representativeName}</p>}
+          {company.postalCode && <p>〒{company.postalCode}</p>}
           {company.address && <p>{company.address}</p>}
           {company.phone && <p>TEL: {company.phone}</p>}
+          {company.email && <p>Email: {company.email}</p>}
           {company.invoiceRegistrationNumber && (
             <p>登録番号: {company.invoiceRegistrationNumber}</p>
           )}
