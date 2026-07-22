@@ -56,6 +56,10 @@
 - 正式販売化PR-2: バックアップの外部フォルダへの書き出し(`export_backup_to`)・
   外部ファイルからの取り込み(`import_backup_from`)を追加し、データ管理画面から操作できるようにした
 - 正式販売化PR-2: Rust unit test 5件・frontend unit test 5件追加(計152件)
+- 正式販売化PR-3: `tests/e2e-tauri/`を新規追加。`tauri-driver`+WebKitWebDriver経由で
+  実際にビルドしたTauriアプリを操作し、初回設定(会社情報・税設定・顧客登録・価格表登録・
+  練習見積作成)、練習見積の金額計算表示、アプリ再起動後のデータ永続化を検証する
+  (Linux専用、`pnpm test:e2e-tauri`、CIに`e2e-tauri`ジョブを追加)
 
 ### Fixed
 

@@ -32,7 +32,8 @@ pnpm tauri dev
 | `pnpm format:check`     | Prettierチェック                                                                   |
 | `pnpm typecheck`        | TypeScript型チェック                                                               |
 | `pnpm test`             | フロントエンドのunit/integration test (Vitest)                                     |
-| `pnpm test:e2e`         | E2Eテスト (Playwright)                                                             |
+| `pnpm test:e2e`         | E2Eテスト (Playwright、ブラウザのみ)                                               |
+| `pnpm test:e2e-tauri`   | 実Tauriアプリに対するE2Eテスト(Linux専用、`tests/e2e-tauri/README.md`参照)         |
 | `pnpm check:migrations` | migrationファイルの適用検証                                                        |
 | `pnpm check:release`    | リリース前のバージョン整合性・未確定情報チェック(`--strict`で正式タグ用の厳格判定) |
 | `pnpm rust:fmt:check`   | Rust fmtチェック                                                                   |
