@@ -77,6 +77,18 @@ describe("DocumentPrintLayout", () => {
     expect(screen.getByText("〒530-0001")).toBeInTheDocument();
   });
 
+  it("顧客の担当者名を「様」付きで表示する", () => {
+    render(<DocumentPrintLayout {...baseProps()} />);
+    expect(screen.getByText("顧客 花子 様")).toBeInTheDocument();
+  });
+
+  it("担当者名が未登録の場合は表示しない", () => {
+    render(
+      <DocumentPrintLayout {...baseProps({ client: { ...BASE_CLIENT, contactName: null } })} />,
+    );
+    expect(screen.queryByText(/様$/)).not.toBeInTheDocument();
+  });
+
   it("会社のメールアドレスを表示する", () => {
     render(<DocumentPrintLayout {...baseProps()} />);
     expect(screen.getByText("Email: info@example.com")).toBeInTheDocument();

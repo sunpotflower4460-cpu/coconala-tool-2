@@ -89,6 +89,7 @@ export function DocumentPrintLayout({
       <div className="print-parties">
         <div className="print-client">
           <p className="print-client-name">{client.name} 御中</p>
+          {client.contactName && <p>{client.contactName} 様</p>}
           {client.postalCode && <p>〒{client.postalCode}</p>}
           {client.address && <p>{client.address}</p>}
         </div>
