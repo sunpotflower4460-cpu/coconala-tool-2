@@ -47,8 +47,10 @@
 ## Phase 6 (販売)
 
 - [ ] `LICENSE`の権利者名と正式なライセンス文言を確定する(現状は暫定の全著作権留保表記)
-- [ ] 販売者情報・特定商取引法に基づく表示を確定する。確定したら`src-tauri/tauri.conf.json`の`bundle.publisher`・`bundle.copyright`にも反映する(現在は未設定)
+- [ ] 販売者情報・特定商取引法に基づく表示を確定する。確定したら`src-tauri/tauri.conf.json`の`bundle.publisher`・`bundle.copyright`(キー自体は用意済み、値は空文字)にも反映する
 - [ ] `docs/TERMS_OF_SERVICE_DRAFT.md`・`docs/DISCLAIMER_DRAFT.md`(いずれも下書き)を弁護士等の専門家によるレビューを経て確定し、`[ ]`のプレースホルダーを埋める。確定後はファイル名から`_DRAFT`を外し、購入者へ提示する
+- [ ] 上記3項目が揃ったら`pnpm check:release -- --strict`を実行し、未確定情報の検出がゼロになることを確認する(`docs/RELEASE_GATES.md`参照)
+- [ ] `src-tauri/tauri.conf.json`の`bundle.macOS.minimumSystemVersion`(現在はTauriの一般的な既定値である`10.13`を暫定設定)を、実機確認結果を踏まえて必要なら調整する
 - [ ] お問い合わせ窓口(連絡方法)を確定し、`docs/USER_MANUAL.md`「5. お困りの際は」および`src/features/help/HelpPage.tsx`の該当箇所へ反映する
 - [ ] `docs/QUICK_START_GUIDE.md`・`docs/USER_MANUAL.md`を実際の同梱物(PDF化等)として整え、画面の実文言と差異がないか最終確認する
 - [ ] `docs/BETA_TEST_OBSERVATION_SHEET.md`を使ってベータ利用者(5〜10人)を募集し、観察記録を取る

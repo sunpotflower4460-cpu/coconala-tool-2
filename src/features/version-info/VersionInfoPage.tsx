@@ -10,25 +10,7 @@ import { useDatabase } from "@/infrastructure/database/use-database";
 import { tauriSystemInfoProvider } from "@/infrastructure/diagnostics/tauri-system-info-provider";
 import { noLicenseCheck } from "@/infrastructure/license/no-license-check";
 import { notConfiguredUpdateCheck } from "@/infrastructure/updates/not-configured-update-check";
-
-const LICENSE_LABELS: Record<LicenseStatus["state"], string> = {
-  unlicensed: "ライセンス管理なし(現在は無償・テスト配布)",
-  valid: "有効",
-  invalid: "無効",
-};
-
-function updateResultLabel(result: UpdateCheckResult): string {
-  switch (result.status) {
-    case "not_configured":
-      return "更新確認は未設定です(署名鍵・配置先の準備後に有効化されます)";
-    case "up_to_date":
-      return "最新バージョンです";
-    case "available":
-      return `新しいバージョン(${result.version})が利用可能です`;
-    case "error":
-      return `更新確認に失敗しました: ${result.message}`;
-  }
-}
+import { LICENSE_LABELS, updateResultLabel } from "@/features/version-info/labels";
 
 export function VersionInfoPage() {
   const db = useDatabase();
@@ -93,7 +75,7 @@ export function VersionInfoPage() {
 
       <h2>更新確認</h2>
       <p>
-        署名鍵と更新ファイルの配置先が準備でき次第、有効化できます。有効化していない間、または未設定の場合でも、既存のデータには一切影響しません。
+        現在、新しいバージョンは自動更新ではなく販売ページから手動で提供します。署名鍵と更新ファイルの配置先が準備でき次第、自動更新を有効化できるようになります。有効化していない間、または未設定の場合でも、既存のデータには一切影響しません。
       </p>
       <label>
         <input

@@ -25,6 +25,8 @@
     "active": true,
     "targets": "all",
     "category": "Business",
+    "publisher": "",
+    "copyright": "",
     "shortDescription": "AIなしでも使える見積・請求書デスクトップアプリ",
     "longDescription": "購入者自身が初回設定し、AIなしでも見積・請求・納品・領収書を作成できる、ローカル完結型の買い切りデスクトップアプリです。",
     "icon": [
@@ -33,6 +35,9 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "macOS": {
+      "minimumSystemVersion": "10.13"
+    }
   }
 }

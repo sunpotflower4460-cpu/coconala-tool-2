@@ -40,6 +40,12 @@
 - Phase 6: 初回設定ガイド(`docs/QUICK_START_GUIDE.md`)・利用マニュアル下書き(`docs/USER_MANUAL.md`)
 - Phase 6: 利用規約・免責事項の下書き(`docs/TERMS_OF_SERVICE_DRAFT.md`・`docs/DISCLAIMER_DRAFT.md`、要専門家レビュー)
 - Phase 6: ベータテスト観察シート(`docs/BETA_TEST_OBSERVATION_SHEET.md`)
+- 正式販売化PR-1: `pnpm check:release`にLICENSE・利用規約・免責事項のプレースホルダー検出、`bundle.publisher`/`bundle.copyright`未設定検出、`--strict`モード(正式タグ用)を追加
+- 正式販売化PR-1: `src-tauri/tauri.conf.json`に`bundle.publisher`・`bundle.copyright`・`bundle.macOS.minimumSystemVersion`の設定欄を追加(値は人間が確定するまで空・暫定値)
+- 正式販売化PR-1: バージョン情報画面のライセンス表示を「買い切り版(ライセンス認証不要)」へ、更新未設定表示を「更新は販売ページから手動で提供します」へ変更(`LicensePort`/`UpdateCheckPort`の戻り値自体は変更なし)
+- 正式販売化PR-1: `README.md`を購入者向け情報に整理し、開発者向けセットアップ・スクリプト一覧を`CONTRIBUTING.md`へ集約
+- 正式販売化PR-1: `docs/RELEASE_GATES.md`を追加(優先度・RC/正式タグの必須条件・バージョン方針)
+- 正式販売化PR-1: unit test 3件追加(計147件)
 
 ### Fixed
 
