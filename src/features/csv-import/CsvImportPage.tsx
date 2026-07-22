@@ -148,6 +148,7 @@ export function CsvImportPage() {
       <p>顧客一覧・価格表を、表計算ソフトで作ったCSVファイルからまとめて登録できます。</p>
       {errorMessage && <ErrorBanner message={errorMessage} />}
 
+      <h2>ステップ1: 取り込み対象とファイルを選ぶ</h2>
       <Field label="取り込み対象" htmlFor="csv-target">
         <select
           id="csv-target"
@@ -194,7 +195,7 @@ export function CsvImportPage() {
 
       {header.length > 0 && (
         <>
-          <h2>列のマッピング</h2>
+          <h2>ステップ2: 列のマッピング</h2>
           {fields.map((field) => (
             <Field
               key={field.key}
@@ -223,7 +224,7 @@ export function CsvImportPage() {
           ))}
 
           <h2>
-            プレビュー({dataRows.length}行中、エラー{errorCount}行)
+            ステップ3: プレビュー({dataRows.length}行中、エラー{errorCount}行)
           </h2>
           <Field label="エラー行だけ表示" htmlFor="csv-error-only">
             <input
@@ -252,7 +253,7 @@ export function CsvImportPage() {
             </tbody>
           </table>
 
-          <h2>重複時の扱い</h2>
+          <h2>ステップ4: 重複時の扱いを選んで取り込む</h2>
           <p>
             {target === "clients" ? "顧客名" : "商品名"}
             が完全一致するデータが既にある場合の扱いです。
