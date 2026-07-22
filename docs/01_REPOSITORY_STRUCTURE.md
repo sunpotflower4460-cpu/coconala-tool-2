@@ -389,30 +389,42 @@ PDF生成方式はPhase 2で小さな技術検証を行い、macOS・Windows双�
 
 ## 8. バックアップ設計
 
+現在の実装(`src-tauri/src/commands/backup.rs`)は、`.mdeskbackup`のような単一コンテナ
+形式ではなく、SQLiteファイル1つ+メタデータJSON1つのペアで構成する。会社ロゴ等の
+アプリ管理下アセットファイルへの参照(`companies.logo_path`)はスキーマ上存在するが、
+実際にファイルを取り込むUIが未実装のため、現時点ではDB本体の一貫したバックアップの
+確保を優先している。アセットファイルの取り込みUIを実装する際は、本設計もアセットの
+バンドルを含む形へ拡張すること。
+
 バックアップファイル例:
 
 ```text
-mitsumori-desk-backup-2026-07-16.mdeskbackup
+mitsumori-desk-backup-20260716-153000.db
+mitsumori-desk-backup-20260716-153000.db.manifest.json
 ```
 
-内部候補:
+生きているDB(アプリが読み書きしている可能性があるDB)からバックアップを作成する際は、
+`fs::copy`による素朴なファイルコピーではなく、SQLiteの`VACUUM INTO`を使う。
+ジャーナルモード(WAL/ロールバックジャーナル)や書き込み中かどうかに関わらず、
+その時点で一貫した単一ファイルのスナップショットが得られる。バックアップ完了後は
+`PRAGMA integrity_check`を行い、失敗した場合はそのバックアップを破棄してエラーを返す。
 
-```text
-manifest.json
-app.sqlite3
-assets/logos/...
-attachments/...
-```
-
-`manifest.json`には次を含める。
+`<file>.manifest.json`には次を含める。
 
 - `backup_format_version`
 - `app_version`
-- `database_schema_version`
-- `created_at`
-- `file_hashes`
+- `schema_version`
+- `created_at_unix`
+- `os`
 
-復元前に現在データを自動退避し、検証失敗時は元へ戻します。
+バックアップは外部フォルダへの書き出し(`export_backup_to`)・外部ファイルからの
+取り込み(`import_backup_from`)にも対応する。取り込み時は`PRAGMA integrity_check`と
+このアプリのテーブル構造(`app_settings`の存在)を検証し、他アプリのSQLiteファイルや
+破損ファイルは取り込まない。
+
+復元前に現在データを自動退避(こちらもVACUUM INTOで一貫したスナップショットを取り、
+整合性検証まで行う)し、退避または検証に失敗した場合は復元自体を開始しない。
+復元処理自体が失敗した場合は退避データへロールバックする。
 
 ---
 

@@ -46,9 +46,22 @@
 - 正式販売化PR-1: `README.md`を購入者向け情報に整理し、開発者向けセットアップ・スクリプト一覧を`CONTRIBUTING.md`へ集約
 - 正式販売化PR-1: `docs/RELEASE_GATES.md`を追加(優先度・RC/正式タグの必須条件・バージョン方針)
 - 正式販売化PR-1: unit test 3件追加(計147件)
+- 正式販売化PR-2: バックアップ作成・復元前退避を、生きているDBの素朴なファイルコピーから
+  SQLiteの`VACUUM INTO`ベースへ変更し、書き込み中でもジャーナルモードに関わらず
+  一貫したスナップショットを作成できるようにした
+- 正式販売化PR-2: バックアップ完了後・復元前退避後に`PRAGMA integrity_check`を実行し、
+  失敗した場合はそのバックアップ/退避データを破棄してエラーにする
+- 正式販売化PR-2: バックアップにメタデータ(`app_version`・`schema_version`・`created_at_unix`・`os`)を
+  `<file>.manifest.json`として付与
+- 正式販売化PR-2: バックアップの外部フォルダへの書き出し(`export_backup_to`)・
+  外部ファイルからの取り込み(`import_backup_from`)を追加し、データ管理画面から操作できるようにした
+- 正式販売化PR-2: Rust unit test 5件・frontend unit test 5件追加(計152件)
 
 ### Fixed
 
 - `sql:default`権限にAPI実行(`execute`)が含まれておらず会社情報保存が失敗する不具合を`sql:allow-execute`権限追加で修正
 - 請求書が発行後に直接入金済みへ遷移できない不具合(状態遷移表に`issued→paid`を追加)を修正
 - 複数SQL文にまたがる書き込み(見積保存・発行・変換・複製・状態変更・練習データ削除)で、`tauri-plugin-sql`のコネクションプールにより手動の`BEGIN`/`COMMIT`が別コネクションに振り分けられ`cannot commit - no transaction is active`が発生し保存が失敗する不具合を、専用コネクションによる原子的なトランザクション実行(`executeTransaction`)へ置き換えて修正(ADR 0007、実機確認で発見)
+- `pnpm/action-setup@v4`にpnpmバージョンが指定されておらず、CIのfrontend/dependency-auditジョブが
+  mainへの統合コミット時点から継続して失敗していた不具合を、`package.json`への`packageManager`
+  フィールド追加で修正

@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { buildDiagnosticsReport } from "@/application/commands/build-diagnostics-report.command";
 import { createBackup } from "@/application/commands/create-backup.command";
 import { deletePracticeData } from "@/application/commands/delete-practice-data.command";
+import { exportBackup } from "@/application/commands/export-backup.command";
+import { importBackup } from "@/application/commands/import-backup.command";
 import { restoreBackup } from "@/application/commands/restore-backup.command";
 import { saveDiagnosticsReport } from "@/application/commands/save-diagnostics-report.command";
 import { seedPracticeData } from "@/application/commands/seed-practice-data.command";
@@ -23,6 +25,11 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1024).toFixed(1)}KB`;
 }
 
+function formatCreatedAt(createdAtUnix: number | null): string | null {
+  if (createdAtUnix === null) return null;
+  return new Date(createdAtUnix * 1000).toLocaleString("ja-JP");
+}
+
 export function DataManagementPage() {
   const db = useDatabase();
   const [backups, setBackups] = useState<BackupInfo[]>([]);
@@ -30,6 +37,8 @@ export function DataManagementPage() {
   const [backupBusy, setBackupBusy] = useState(false);
   const [restoreTarget, setRestoreTarget] = useState<BackupInfo | null>(null);
   const [restoreDone, setRestoreDone] = useState(false);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
+  const [importMessage, setImportMessage] = useState<string | null>(null);
 
   const [diagnosticsMessage, setDiagnosticsMessage] = useState<string | null>(null);
   const [diagnosticsError, setDiagnosticsError] = useState<string | null>(null);
@@ -80,6 +89,39 @@ export function DataManagementPage() {
       return;
     }
     setRestoreDone(true);
+    reloadBackups();
+  }
+
+  async function handleExportBackup(backup: BackupInfo) {
+    setBackupError(null);
+    setExportMessage(null);
+    setBackupBusy(true);
+    const result = await exportBackup(tauriBackupStore, backup.fileName);
+    setBackupBusy(false);
+    if (!result.ok) {
+      setBackupError(result.error.message);
+      return;
+    }
+    setExportMessage(
+      result.value ? `書き出しました: ${result.value}` : "書き出しをキャンセルしました",
+    );
+  }
+
+  async function handleImportBackup() {
+    setBackupError(null);
+    setImportMessage(null);
+    setBackupBusy(true);
+    const result = await importBackup(tauriBackupStore);
+    setBackupBusy(false);
+    if (!result.ok) {
+      setBackupError(result.error.message);
+      return;
+    }
+    if (!result.value) {
+      setImportMessage("取り込みをキャンセルしました");
+      return;
+    }
+    setImportMessage(`取り込みました: ${result.value.fileName}`);
     reloadBackups();
   }
 
@@ -183,6 +225,8 @@ export function DataManagementPage() {
         {restoreDone && (
           <p role="status">復元が完了しました。反映するにはアプリを再起動してください。</p>
         )}
+        {exportMessage && <p role="status">{exportMessage}</p>}
+        {importMessage && <p role="status">{importMessage}</p>}
         <button
           type="button"
           disabled={backupBusy}
@@ -192,14 +236,25 @@ export function DataManagementPage() {
         >
           バックアップを作成
         </button>
+        <button
+          type="button"
+          disabled={backupBusy}
+          onClick={() => {
+            void handleImportBackup();
+          }}
+        >
+          外部フォルダから取り込む
+        </button>
         <ul>
           {backups.map((backup) => {
             const versionMismatch =
               backup.schemaVersion !== null && backup.schemaVersion > CURRENT_SCHEMA_VERSION;
+            const createdAt = formatCreatedAt(backup.createdAtUnix);
             return (
               <li key={backup.fileName}>
                 {backup.fileName}({formatSize(backup.sizeBytes)}
                 {backup.schemaVersion !== null && `, スキーマver.${backup.schemaVersion}`}
+                {createdAt && `, 作成日時 ${createdAt}`}
                 {versionMismatch && " ※新しいバージョンで作成されたバックアップです"})
                 <button
                   type="button"
@@ -207,6 +262,15 @@ export function DataManagementPage() {
                   onClick={() => setRestoreTarget(backup)}
                 >
                   復元
+                </button>
+                <button
+                  type="button"
+                  disabled={backupBusy}
+                  onClick={() => {
+                    void handleExportBackup(backup);
+                  }}
+                >
+                  外部フォルダへ書き出す
                 </button>
               </li>
             );
