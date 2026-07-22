@@ -1,10 +1,13 @@
 # RELEASE_PROCESS.md
 
+正式販売化の優先度・タグ種別ごとの必須条件は [`docs/RELEASE_GATES.md`](RELEASE_GATES.md) を参照。
+
 ## バージョニング
 
 - `package.json` / `src-tauri/Cargo.toml` / `src-tauri/tauri.conf.json`のバージョンを一致させる。
 - [Semantic Versioning](https://semver.org/)に従う(`MAJOR.MINOR.PATCH`)。
-- `pnpm check:release`(`scripts/verify-release.mjs`)で3箇所のバージョン一致と`CHANGELOG.md`への記載を機械的に確認できる。
+- `pnpm check:release`(`scripts/verify-release.mjs`)で3箇所のバージョン一致と`CHANGELOG.md`への記載を機械的に確認できる(通常CIで実行)。
+- `pnpm check:release -- --strict`(または`RELEASE_STRICT=1`)を付けると、LICENSE・利用規約・免責事項のプレースホルダー、`bundle.publisher`/`bundle.copyright`の未設定も検出してエラー終了する。正式タグ(`vX.Y.Z`、`-rc`を含まない)のリリースではこのstrictモードを通過させること。
 
 ## リリース手順
 
