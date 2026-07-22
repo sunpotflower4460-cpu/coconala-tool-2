@@ -11,7 +11,7 @@
 // 本番の署名・成果物検証(ハッシュ照合等)は、実際のGitHub Release作成後に
 // docs/RELEASE_PROCESS.mdの手順に従って人間が確認する。
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -42,12 +42,39 @@ function checkChangelogMentionsVersion(version) {
 }
 
 // [ ... ] 形式のプレースホルダー(利用規約・免責事項の下書きで使われている記法)を検出する。
-const BRACKET_PLACEHOLDER = /\[[^[\]\n]*\S[^[\]\n]*\]/g;
+// 直後に "(" が続く場合はMarkdownリンク記法([文言](URL))とみなして除外する。
+const BRACKET_PLACEHOLDER = /\[[^[\]\n]*\S[^[\]\n]*\](?!\()/g;
 
 function findBracketPlaceholders(relativePath) {
   const text = readFileSync(path.join(rootDir, relativePath), "utf-8");
   const matches = text.match(BRACKET_PLACEHOLDER) ?? [];
   return [...new Set(matches)];
+}
+
+// 利用規約・免責事項は、専門家レビュー確定後にファイル名から_DRAFTが外れる運用
+// (docs/MANUAL_STEPS.md参照)。どちらの名前が存在するかを実行時に解決することで、
+// リネーム後にreadFileSyncがENOENTでスクリプトごと落ちることを防ぐ。
+const LEGAL_DOCS = [
+  {
+    label: "利用規約",
+    draftPath: "docs/TERMS_OF_SERVICE_DRAFT.md",
+    finalPath: "docs/TERMS_OF_SERVICE.md",
+  },
+  {
+    label: "免責事項",
+    draftPath: "docs/DISCLAIMER_DRAFT.md",
+    finalPath: "docs/DISCLAIMER.md",
+  },
+];
+
+function resolveLegalDoc(doc) {
+  if (existsSync(path.join(rootDir, doc.finalPath))) {
+    return { relativePath: doc.finalPath, isDraft: false };
+  }
+  if (existsSync(path.join(rootDir, doc.draftPath))) {
+    return { relativePath: doc.draftPath, isDraft: true };
+  }
+  return null;
 }
 
 const versionErrors = [];
@@ -81,22 +108,27 @@ if (!checkChangelogMentionsVersion(packageVersion)) {
   console.log("OK  CHANGELOG.mdにバージョンの記載があります");
 }
 
-// LICENSE / 利用規約 / 免責事項の [ ... ] プレースホルダー
-for (const relativePath of [
-  "LICENSE",
-  "docs/TERMS_OF_SERVICE_DRAFT.md",
-  "docs/DISCLAIMER_DRAFT.md",
-]) {
-  const placeholders = findBracketPlaceholders(relativePath);
-  if (placeholders.length > 0) {
-    placeholderFindings.push(`${relativePath}: ${placeholders.join(", ")}`);
+// 利用規約・免責事項がどちらの名前で存在するかを解決し、下書き(_DRAFT)のままなら記録する。
+const legalDocPaths = [];
+for (const doc of LEGAL_DOCS) {
+  const resolved = resolveLegalDoc(doc);
+  if (!resolved) {
+    placeholderFindings.push(`${doc.label}: ${doc.finalPath} も ${doc.draftPath} も見つかりません`);
+    continue;
+  }
+  legalDocPaths.push(resolved.relativePath);
+  if (resolved.isDraft) {
+    placeholderFindings.push(
+      `${resolved.relativePath}: ファイル名が_DRAFTのままです(専門家レビュー未確定)`,
+    );
   }
 }
 
-// 利用規約・免責事項が下書き(_DRAFT)のままかどうか
-for (const relativePath of ["docs/TERMS_OF_SERVICE_DRAFT.md", "docs/DISCLAIMER_DRAFT.md"]) {
-  if (relativePath.includes("_DRAFT")) {
-    placeholderFindings.push(`${relativePath}: ファイル名が_DRAFTのままです(専門家レビュー未確定)`);
+// LICENSE / 利用規約 / 免責事項の [ ... ] プレースホルダー
+for (const relativePath of ["LICENSE", ...legalDocPaths]) {
+  const placeholders = findBracketPlaceholders(relativePath);
+  if (placeholders.length > 0) {
+    placeholderFindings.push(`${relativePath}: ${placeholders.join(", ")}`);
   }
 }
 
