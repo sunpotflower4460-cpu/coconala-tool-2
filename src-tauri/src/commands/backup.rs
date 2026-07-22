@@ -65,6 +65,16 @@ fn remove_if_exists(path: &Path) {
     }
 }
 
+// コピー先の本体・付随ファイル・メタデータをまとめて削除する。
+// コピーが途中(容量不足等)で失敗した際、不完全なファイルを残さないために使う。
+fn remove_backup_artifacts(path: &Path) {
+    remove_if_exists(path);
+    for suffix in SIDECAR_SUFFIXES {
+        remove_if_exists(&append_suffix(path, suffix));
+    }
+    remove_if_exists(&manifest_path(path));
+}
+
 // -wal/-shm/-journalはsqliteの内部状態を含むため、存在する場合のみ一緒に複製する。
 // 復元済みバックアップファイル(既に整合性検証済みの静的ファイル)を書き込み先へ
 // 反映する際にのみ使う。生きているDBを読み取る場合はvacuum_intoを使うこと。
@@ -340,7 +350,10 @@ pub fn export_backup_to(
     if destination.exists() {
         return Err("出力先に同名のファイルが既に存在します".to_string());
     }
-    copy_with_sidecars(&source, &destination)?;
+    if let Err(error) = copy_with_sidecars(&source, &destination) {
+        remove_backup_artifacts(&destination);
+        return Err(error);
+    }
     let manifest_source = manifest_path(&source);
     if manifest_source.exists() {
         let _ = fs::copy(&manifest_source, manifest_path(&destination));
@@ -367,7 +380,10 @@ pub fn import_backup_from(
     if dest.exists() {
         return Err("同名のバックアップが既に存在します".to_string());
     }
-    copy_with_sidecars(&source, &dest)?;
+    if let Err(error) = copy_with_sidecars(&source, &dest) {
+        remove_backup_artifacts(&dest);
+        return Err(error);
+    }
     let manifest_source = manifest_path(&source);
     if manifest_source.exists() {
         let _ = fs::copy(&manifest_source, manifest_path(&dest));
