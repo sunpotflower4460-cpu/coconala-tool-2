@@ -39,6 +39,75 @@ describe("AnthropicProvider", () => {
     if (!result.ok) expect(result.error.code).toBe("network");
   });
 
+  it("429の場合はrate_limitedを返す", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(429, { error: "rate limited" })));
+    const provider = new AnthropicProvider();
+    const result = await provider.testConnection("sk-ant-key");
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("rate_limited");
+  });
+
+  it("5xxの場合はserver_errorを返す", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(jsonResponse(503, { error: "service unavailable" })),
+    );
+    const provider = new AnthropicProvider();
+    const result = await provider.testConnection("sk-ant-key");
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("server_error");
+  });
+
+  it("タイムアウト(30秒応答なし)の場合はtimeoutを返す", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((_url: string, init: RequestInit) => {
+        return new Promise((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"));
+          });
+        });
+      }),
+    );
+    const provider = new AnthropicProvider();
+    const resultPromise = provider.testConnection("sk-ant-key");
+    await vi.advanceTimersByTimeAsync(30_000);
+    const result = await resultPromise;
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("timeout");
+    vi.useRealTimers();
+  });
+
+  it("巨大な応答でもクラッシュせず処理できる", async () => {
+    const manyItems = Array.from({ length: 5000 }, (_, index) => ({
+      source_text: `明細${index}`.repeat(20),
+      normalized_name: `商品${index}`,
+      quantity: 1,
+      unit: "個",
+      catalog_candidates: [],
+      questions: [],
+    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse(200, {
+          content: [
+            {
+              type: "tool_use",
+              name: "submit_inquiry_extraction",
+              input: { summary: "大量の明細", items: manyItems, global_questions: [] },
+            },
+          ],
+        }),
+      ),
+    );
+    const provider = new AnthropicProvider();
+    const result = await provider.extractInquiry({ text: "x", catalogItems: [] }, "sk-ant-key");
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.items).toHaveLength(5000);
+  });
+
   it("extractInquiryはtool_useブロックを検証して構造化データを返す", async () => {
     vi.stubGlobal(
       "fetch",

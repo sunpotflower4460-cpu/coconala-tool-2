@@ -96,6 +96,11 @@ export function AiSettingsPage() {
         AI文章読み取り機能を使用しますか?
         利用しない場合でも、見積・請求・納品・領収書の作成など基本機能はすべて使えます。
       </p>
+      <p className="hint">
+        この機能を使うには、契約しているAIサービス(Anthropic社等)のAPIキーが必要です。
+        AIサービスの利用料金はご自身の契約に基づき発生し、購入者(あなた)のご負担となります。
+        本アプリの購入代金には含まれません。
+      </p>
       {errorMessage && <ErrorBanner message={errorMessage} />}
       <form
         onSubmit={(event) => {
