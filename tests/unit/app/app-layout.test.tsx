@@ -27,7 +27,7 @@ describe("AppLayout", () => {
     renderAppLayout();
     const expectedLinks: Array<[string, string]> = [
       ["ホーム", "/"],
-      ["見積書を新規作成", "/estimates/new"],
+      ["新しい見積を作る", "/estimates/new"],
       ["問い合わせ読み取り", "/inquiries"],
       ["見積書", "/estimates"],
       ["請求書", "/invoices"],
