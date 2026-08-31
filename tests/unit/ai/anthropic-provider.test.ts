@@ -23,12 +23,12 @@ describe("AnthropicProvider", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("testConnectionは401でinvalid_api_keyを返す", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(401, { error: "unauthorized" })));
+  it("testConnectionは403でforbiddenを返す", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(403, { error: "forbidden" })));
     const provider = new AnthropicProvider();
     const result = await provider.testConnection("sk-ant-invalid");
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.code).toBe("invalid_api_key");
+    if (!result.ok) expect(result.error.code).toBe("forbidden");
   });
 
   it("ネットワークエラー時はnetworkエラーを返す", async () => {
@@ -56,6 +56,49 @@ describe("AnthropicProvider", () => {
     const result = await provider.testConnection("sk-ant-key");
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe("server_error");
+  });
+
+  it("500の場合もserver_errorを返す", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(500, { error: "internal" })));
+    const provider = new AnthropicProvider();
+    const result = await provider.testConnection("sk-ant-key");
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("server_error");
+  });
+
+  it("空の応答はinvalid_responseを返す", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status: 200 })));
+    const provider = new AnthropicProvider();
+    const result = await provider.testConnection("sk-ant-key");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("invalid_response");
+      expect(result.error.message).not.toContain("sk-ant-key");
+    }
+  });
+
+  it("壊れたJSONはinvalid_responseを返す(通信エラーにしない)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response("{not-json", {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+        ),
+    );
+    const provider = new AnthropicProvider();
+    const result = await provider.extractInquiry(
+      { text: "x", catalogItems: [] },
+      "sk-ant-unique-leak-token",
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("invalid_response");
+      expect(result.error.message).not.toContain("sk-ant-unique-leak-token");
+    }
   });
 
   it("タイムアウト(30秒応答なし)の場合はtimeoutを返す", async () => {

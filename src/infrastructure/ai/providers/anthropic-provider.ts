@@ -101,8 +101,14 @@ async function callAnthropic(
       signal,
     });
 
-    if (response.status === 401 || response.status === 403) {
-      return err({ code: "invalid_api_key", message: "APIキーが正しくないか、権限がありません。" });
+    if (response.status === 401) {
+      return err({ code: "invalid_api_key", message: "APIキーが正しくありません。" });
+    }
+    if (response.status === 403) {
+      return err({
+        code: "forbidden",
+        message: "APIキーにこの操作の権限がありません。契約内容を確認してください。",
+      });
     }
     if (response.status === 429) {
       return err({
@@ -114,18 +120,31 @@ async function callAnthropic(
     if (response.status >= 500) {
       return err({
         code: "server_error",
-        message: `AIサービス側で問題が発生しています(status: ${response.status})。しばらく待ってから再試行してください。`,
+        message: `AIサービス側で問題が発生しています。しばらく待ってから再試行してください。`,
       });
     }
     if (!response.ok) {
       return err({
         code: "unknown",
-        message: `AIサービスからエラーが返されました(status: ${response.status})`,
+        message: "AIサービスからエラーが返されました。しばらく待ってから再試行してください。",
       });
     }
 
-    const json = (await response.json()) as AnthropicMessageResponse;
-    return ok(json);
+    const raw = await response.text();
+    if (raw.trim() === "") {
+      return err({
+        code: "invalid_response",
+        message: "AIサービスから空の応答が返りました。",
+      });
+    }
+    try {
+      return ok(JSON.parse(raw) as AnthropicMessageResponse);
+    } catch {
+      return err({
+        code: "invalid_response",
+        message: "AIの応答を読み取れませんでした。",
+      });
+    }
   } catch (error) {
     if (options?.signal?.aborted) {
       return err({ code: "cancelled", message: "処理をキャンセルしました。" });
