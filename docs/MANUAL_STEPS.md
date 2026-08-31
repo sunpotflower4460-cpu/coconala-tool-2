@@ -2,6 +2,8 @@
 
 コードで自動化できない、または意図的に自動化しない作業をここに集約する。開発AIはこの一覧にある作業を勝手に実行しない。
 
+発売直前に人間が上から実施する順は [`docs/HUMAN_RELEASE_CHECKLIST.md`](HUMAN_RELEASE_CHECKLIST.md) を正とする。
+
 リリース判定の証跡は [`docs/RELEASE_EVIDENCE.md`](RELEASE_EVIDENCE.md) に、自動確認と人間確認を分けて記録する。販売上の対応OSは [`docs/SUPPORTED_PLATFORMS.md`](SUPPORTED_PLATFORMS.md) を正本とする。
 
 ## 進め方
