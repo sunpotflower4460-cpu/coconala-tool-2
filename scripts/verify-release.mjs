@@ -1,169 +1,96 @@
 #!/usr/bin/env node
 // リリース前に、バージョン番号の一致と、購入者向け成果物に残っている未確定情報
-// (プレースホルダー・publisher/copyright未設定)を検出する。
+// (プレースホルダー・publisher/copyright未設定・サポート窓口・秘密情報・OS表記の矛盾)を検出する。
 //
-// 既定(非strict)では未確定情報を警告として表示するのみで、通常のCIやPR上では
-// 失敗させない(_DRAFT下書きが残っている開発中は当然の状態のため)。
-// `--strict`(または環境変数 RELEASE_STRICT=1)を付けて実行した場合のみ、
-// 未確定情報が1つでも残っていればエラー終了する。正式タグ(vX.Y.Z、rcを含まない)の
-// リリースワークフローではこのstrictモードを使うこと(docs/RELEASE_GATES.md参照)。
+// モード:
+//   既定(basic)  : 未確定情報は警告。通常のCIやPRでは失敗させない。
+//   --rc         : RCタグ(vX.Y.Z-rc.N)用。バージョン一致・秘密情報・OS表記・
+//                  自動更新の未実装明記を必須にする。規約DRAFTやpublisher空は許容する。
+//   --strict     : 正式タグ(vX.Y.Z)用。RCの検査に加え、プレースホルダー・DRAFT・
+//                  publisher/copyright・サポート窓口・CHANGELOGの正式セクションも必須。
 //
-// 本番の署名・成果物検証(ハッシュ照合等)は、実際のGitHub Release作成後に
-// docs/RELEASE_PROCESS.mdの手順に従って人間が確認する。
+// 人間確認(macOS実機・署名・公証・PDF目視・実API・β)をGitHub Actionsだけで
+// 「完了」と判断しない。それらは docs/RELEASE_EVIDENCE.md の人間確認欄へ記録する。
 
-import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { collectReleaseFindings, parseMode, shouldFail } from "./release-checks.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const strict = process.argv.includes("--strict") || process.env.RELEASE_STRICT === "1";
+const mode = parseMode(process.argv, process.env);
+const findings = collectReleaseFindings(rootDir, mode);
+const failLogger = mode === "basic" ? console.warn : console.error;
+const placeholderLogger = mode === "strict" ? console.error : console.warn;
 
-function readPackageVersion() {
-  const pkg = JSON.parse(readFileSync(path.join(rootDir, "package.json"), "utf-8"));
-  return pkg.version;
-}
-
-function readTauriConf() {
-  return JSON.parse(readFileSync(path.join(rootDir, "src-tauri/tauri.conf.json"), "utf-8"));
-}
-
-function readCargoVersion() {
-  const cargoToml = readFileSync(path.join(rootDir, "src-tauri/Cargo.toml"), "utf-8");
-  const match = /^version\s*=\s*"([^"]+)"/m.exec(cargoToml);
-  if (!match) {
-    throw new Error("src-tauri/Cargo.tomlからversionを読み取れませんでした");
-  }
-  return match[1];
-}
-
-function checkChangelogMentionsVersion(version) {
-  const changelog = readFileSync(path.join(rootDir, "CHANGELOG.md"), "utf-8");
-  return changelog.includes(`[${version}]`) || changelog.includes("[Unreleased]");
-}
-
-// [ ... ] 形式のプレースホルダー(利用規約・免責事項の下書きで使われている記法)を検出する。
-// 直後に "(" が続く場合はMarkdownリンク記法([文言](URL))とみなして除外する。
-const BRACKET_PLACEHOLDER = /\[[^[\]\n]*\S[^[\]\n]*\](?!\()/g;
-
-function findBracketPlaceholders(relativePath) {
-  const text = readFileSync(path.join(rootDir, relativePath), "utf-8");
-  const matches = text.match(BRACKET_PLACEHOLDER) ?? [];
-  return [...new Set(matches)];
-}
-
-// 利用規約・免責事項は、専門家レビュー確定後にファイル名から_DRAFTが外れる運用
-// (docs/MANUAL_STEPS.md参照)。どちらの名前が存在するかを実行時に解決することで、
-// リネーム後にreadFileSyncがENOENTでスクリプトごと落ちることを防ぐ。
-const LEGAL_DOCS = [
-  {
-    label: "利用規約",
-    draftPath: "docs/TERMS_OF_SERVICE_DRAFT.md",
-    finalPath: "docs/TERMS_OF_SERVICE.md",
-  },
-  {
-    label: "免責事項",
-    draftPath: "docs/DISCLAIMER_DRAFT.md",
-    finalPath: "docs/DISCLAIMER.md",
-  },
-];
-
-function resolveLegalDoc(doc) {
-  if (existsSync(path.join(rootDir, doc.finalPath))) {
-    return { relativePath: doc.finalPath, isDraft: false };
-  }
-  if (existsSync(path.join(rootDir, doc.draftPath))) {
-    return { relativePath: doc.draftPath, isDraft: true };
-  }
-  return null;
-}
-
-const versionErrors = [];
-const placeholderFindings = [];
-
-const packageVersion = readPackageVersion();
-const tauriConf = readTauriConf();
-const cargoVersion = readCargoVersion();
-
-const versions = {
-  "package.json": packageVersion,
-  "tauri.conf.json": tauriConf.version,
-  "Cargo.toml": cargoVersion,
-};
-const uniqueVersions = new Set(Object.values(versions));
-
-if (uniqueVersions.size !== 1) {
-  versionErrors.push("バージョン番号が一致していません。");
-  for (const [file, version] of Object.entries(versions)) {
-    versionErrors.push(`  ${file}: ${version}`);
-  }
+if (findings.versionErrors.length === 0) {
+  console.log(`OK  バージョン番号が一致しています(${findings.packageVersion})`);
 } else {
-  console.log(`OK  バージョン番号が一致しています(${packageVersion})`);
-}
-
-if (!checkChangelogMentionsVersion(packageVersion)) {
-  versionErrors.push(
-    `CHANGELOG.mdに [${packageVersion}] または [Unreleased] セクションが見つかりません。`,
-  );
-} else {
-  console.log("OK  CHANGELOG.mdにバージョンの記載があります");
-}
-
-// 利用規約・免責事項がどちらの名前で存在するかを解決し、下書き(_DRAFT)のままなら記録する。
-const legalDocPaths = [];
-for (const doc of LEGAL_DOCS) {
-  const resolved = resolveLegalDoc(doc);
-  if (!resolved) {
-    placeholderFindings.push(`${doc.label}: ${doc.finalPath} も ${doc.draftPath} も見つかりません`);
-    continue;
-  }
-  legalDocPaths.push(resolved.relativePath);
-  if (resolved.isDraft) {
-    placeholderFindings.push(
-      `${resolved.relativePath}: ファイル名が_DRAFTのままです(専門家レビュー未確定)`,
-    );
-  }
-}
-
-// LICENSE / 利用規約 / 免責事項の [ ... ] プレースホルダー
-for (const relativePath of ["LICENSE", ...legalDocPaths]) {
-  const placeholders = findBracketPlaceholders(relativePath);
-  if (placeholders.length > 0) {
-    placeholderFindings.push(`${relativePath}: ${placeholders.join(", ")}`);
-  }
-}
-
-// publisher / copyright 未設定
-if (!tauriConf.bundle?.publisher) {
-  placeholderFindings.push("src-tauri/tauri.conf.json: bundle.publisher が未設定です");
-}
-if (!tauriConf.bundle?.copyright) {
-  placeholderFindings.push("src-tauri/tauri.conf.json: bundle.copyright が未設定です");
-}
-
-if (placeholderFindings.length > 0) {
-  const label = strict ? "エラー" : "警告";
-  console[strict ? "error" : "warn"](
-    `${label}: 購入者向け成果物に未確定情報が残っています(${placeholderFindings.length}件)`,
-  );
-  for (const finding of placeholderFindings) {
-    console[strict ? "error" : "warn"](`  - ${finding}`);
-  }
-  if (!strict) {
-    console.warn(
-      "  (正式タグのリリースではこれらを解消し、`pnpm check:release -- --strict` を通過させること。docs/RELEASE_GATES.md参照)",
-    );
-  }
-} else {
-  console.log("OK  未確定情報(プレースホルダー・publisher/copyright)は見つかりませんでした");
-}
-
-if (versionErrors.length > 0) {
-  console.error("エラー:");
-  for (const line of versionErrors) {
+  console.error("エラー: バージョン番号");
+  for (const line of findings.versionErrors) {
     console.error(`  ${line}`);
   }
 }
 
-if (versionErrors.length > 0 || (strict && placeholderFindings.length > 0)) {
+if (mode === "strict") {
+  console.log("モード: strict(正式タグ)。CHANGELOGの正式セクションと未確定情報ゼロが必須です");
+} else if (mode === "rc") {
+  console.log(
+    "モード: rc。規約DRAFT・publisher空は許容し、秘密情報・OS表記・更新未実装の明記は必須です",
+  );
+} else {
+  console.log("モード: basic。未確定情報は警告のみです");
+}
+
+if (findings.placeholderFindings.length > 0) {
+  const label = mode === "strict" ? "エラー" : "警告";
+  placeholderLogger(
+    `${label}: 購入者向け成果物に未確定情報が残っています(${findings.placeholderFindings.length}件)`,
+  );
+  for (const finding of findings.placeholderFindings) {
+    placeholderLogger(`  - ${finding}`);
+  }
+  if (mode !== "strict") {
+    console.warn(
+      "  (正式タグではこれらを解消し、`pnpm check:release -- --strict` を通過させること。docs/RELEASE_GATES.md参照)",
+    );
+  }
+} else {
+  console.log(
+    "OK  未確定情報(プレースホルダー・publisher/copyright・サポート窓口)は見つかりませんでした",
+  );
+}
+
+if (findings.updater.implemented) {
+  console.log("OK  自動更新プラグインがCargo依存に含まれています");
+} else if (findings.updater.documented) {
+  console.log("OK  自動更新は未実装であり、そのことが文書に明記されています");
+} else {
+  failLogger("自動更新が未実装なのに、購入者向け文書へ未設定である旨がありません");
+}
+
+if (findings.rcRequiredFindings.length === 0) {
+  console.log("OK  販売OSの記載と自動更新の説明に矛盾はありません");
+} else {
+  const label = mode === "basic" ? "警告" : "エラー";
+  failLogger(`${label}: RC以上で必須の品質項目`);
+  for (const finding of findings.rcRequiredFindings) {
+    failLogger(`  - ${finding}`);
+  }
+}
+
+if (findings.secretHits.length === 0) {
+  console.log("OK  検査対象の本番成果物に秘密情報らしき文字列は見つかりませんでした");
+} else {
+  console.error(`エラー: 秘密情報らしき文字列(${findings.secretHits.length}件)`);
+  for (const hit of findings.secretHits) {
+    console.error(`  - ${hit.message}`);
+  }
+}
+
+console.log(
+  "注記: このコマンドは人間確認(実機・署名・公証・PDF目視・実API・β)を完了扱いにしません。docs/RELEASE_EVIDENCE.mdを参照してください。",
+);
+
+if (shouldFail(mode, findings)) {
   process.exit(1);
 }

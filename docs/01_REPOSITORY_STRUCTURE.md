@@ -28,8 +28,11 @@ mitsumori-desk/
 │   ├── DATA_MODEL.md
 │   ├── SECURITY.md
 │   ├── MANUAL_STEPS.md
-│   ├── SUPPORT_PLAYBOOK.md
-│   └── RELEASE_PROCESS.md
+│   ├── RELEASE_GATES.md
+│   ├── RELEASE_PROCESS.md
+│   ├── RELEASE_EVIDENCE.md
+│   ├── SUPPORTED_PLATFORMS.md
+│   └── SUPPORT_PLAYBOOK.md
 │
 ├── public/
 │   ├── sample/
@@ -156,6 +159,7 @@ mitsumori-desk/
 │
 ├── scripts/
 │   ├── verify-release.mjs
+│   ├── release-checks.mjs
 │   ├── generate-sample-data.mjs
 │   ├── redact-diagnostic-fixture.mjs
 │   └── check-migrations.mjs

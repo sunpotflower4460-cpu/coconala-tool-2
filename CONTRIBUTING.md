@@ -24,22 +24,24 @@ pnpm tauri dev
 
 ## 主要スクリプト
 
-| コマンド                | 内容                                                                               |
-| ----------------------- | ---------------------------------------------------------------------------------- |
-| `pnpm dev`              | Viteの開発サーバーのみ起動                                                         |
-| `pnpm tauri dev`        | デスクトップアプリとして起動                                                       |
-| `pnpm lint`             | ESLint                                                                             |
-| `pnpm format:check`     | Prettierチェック                                                                   |
-| `pnpm typecheck`        | TypeScript型チェック                                                               |
-| `pnpm test`             | フロントエンドのunit/integration test (Vitest)                                     |
-| `pnpm test:e2e`         | E2Eテスト (Playwright、ブラウザのみ)                                               |
-| `pnpm test:e2e-tauri`   | 実Tauriアプリに対するE2Eテスト(Linux専用、`tests/e2e-tauri/README.md`参照)         |
-| `pnpm check:migrations` | migrationファイルの適用検証                                                        |
-| `pnpm check:release`    | リリース前のバージョン整合性・未確定情報チェック(`--strict`で正式タグ用の厳格判定) |
-| `pnpm rust:fmt:check`   | Rust fmtチェック                                                                   |
-| `pnpm rust:clippy`      | Rust clippy (警告をエラー扱い)                                                     |
-| `pnpm rust:test`        | Rustのテスト                                                                       |
-| `pnpm tauri build`      | 本番ビルド                                                                         |
+| コマンド                    | 内容                                                                       |
+| --------------------------- | -------------------------------------------------------------------------- |
+| `pnpm dev`                  | Viteの開発サーバーのみ起動                                                 |
+| `pnpm tauri dev`            | デスクトップアプリとして起動                                               |
+| `pnpm lint`                 | ESLint                                                                     |
+| `pnpm format:check`         | Prettierチェック                                                           |
+| `pnpm typecheck`            | TypeScript型チェック                                                       |
+| `pnpm test`                 | フロントエンドのunit/integration test (Vitest)                             |
+| `pnpm test:e2e`             | E2Eテスト (Playwright、ブラウザのみ)                                       |
+| `pnpm test:e2e-tauri`       | 実Tauriアプリに対するE2Eテスト(Linux専用、`tests/e2e-tauri/README.md`参照) |
+| `pnpm check:migrations`     | migrationファイルの適用検証                                                |
+| `pnpm check:release`        | リリース前チェック(basic。プレースホルダーは警告)                          |
+| `pnpm check:release:rc`     | RCタグ用チェック(秘密情報・OS表記・更新未実装の明記を必須)                 |
+| `pnpm check:release:strict` | 正式タグ用の厳格判定(プレースホルダー・DRAFT・窓口未確定でも失敗)          |
+| `pnpm rust:fmt:check`       | Rust fmtチェック                                                           |
+| `pnpm rust:clippy`          | Rust clippy (警告をエラー扱い)                                             |
+| `pnpm rust:test`            | Rustのテスト                                                               |
+| `pnpm tauri build`          | 本番ビルド                                                                 |
 
 ## ドキュメント
 
@@ -50,6 +52,8 @@ pnpm tauri dev
 - [`docs/04_ACCEPTANCE_CHECKLIST.md`](docs/04_ACCEPTANCE_CHECKLIST.md) — 販売可能判定チェックリスト
 - [`docs/RELEASE_GATES.md`](docs/RELEASE_GATES.md) — 正式販売化の優先度・リリースゲート
 - [`docs/RELEASE_PROCESS.md`](docs/RELEASE_PROCESS.md) — リリース手順
+- [`docs/RELEASE_EVIDENCE.md`](docs/RELEASE_EVIDENCE.md) — 自動確認と人間確認の証跡欄
+- [`docs/SUPPORTED_PLATFORMS.md`](docs/SUPPORTED_PLATFORMS.md) — 販売上の公式対応OS
 - [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) — DBスキーマと金額計算仕様
 - [`docs/SECURITY.md`](docs/SECURITY.md) — セキュリティ方針
 - [`docs/MANUAL_STEPS.md`](docs/MANUAL_STEPS.md) — 人間だけが行う作業一覧

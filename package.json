@@ -23,7 +23,9 @@
     "rust:clippy": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
     "rust:test": "cargo test --manifest-path src-tauri/Cargo.toml",
     "check:migrations": "node scripts/check-migrations.mjs",
-    "check:release": "node scripts/verify-release.mjs"
+    "check:release": "node scripts/verify-release.mjs",
+    "check:release:rc": "node scripts/verify-release.mjs --rc",
+    "check:release:strict": "node scripts/verify-release.mjs --strict"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

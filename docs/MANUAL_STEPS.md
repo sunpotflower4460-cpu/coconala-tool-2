@@ -2,6 +2,8 @@
 
 コードで自動化できない、または意図的に自動化しない作業をここに集約する。開発AIはこの一覧にある作業を勝手に実行しない。
 
+リリース判定の証跡は [`docs/RELEASE_EVIDENCE.md`](RELEASE_EVIDENCE.md) に、自動確認と人間確認を分けて記録する。販売上の対応OSは [`docs/SUPPORTED_PLATFORMS.md`](SUPPORTED_PLATFORMS.md) を正本とする。
+
 ## 進め方
 
 - [ ] 未着手
@@ -59,7 +61,7 @@
 - [ ] `docs/TERMS_OF_SERVICE_DRAFT.md`・`docs/DISCLAIMER_DRAFT.md`(いずれも下書き)を弁護士等の専門家によるレビューを経て確定し、`[ ]`のプレースホルダーを埋める。確定後はファイル名から`_DRAFT`を外し、購入者へ提示する
 - [ ] 上記3項目が揃ったら`pnpm check:release -- --strict`を実行し、未確定情報の検出がゼロになることを確認する(`docs/RELEASE_GATES.md`参照)
 - [ ] `src-tauri/tauri.conf.json`の`bundle.macOS.minimumSystemVersion`(現在はTauriの一般的な既定値である`10.13`を暫定設定)を、実機確認結果を踏まえて必要なら調整する
-- [ ] お問い合わせ窓口(連絡方法)を確定し、`docs/USER_MANUAL.md`「5. お困りの際は」および`src/features/help/HelpPage.tsx`の該当箇所へ反映する
+- [ ] お問い合わせ窓口(連絡方法)を確定し、`docs/USER_MANUAL.md`「5. お困りの際は」および`src/features/help/HelpPage.tsx`・`README.md`の `support-contact: PENDING` を `CONFIRMED` へ更新して連絡方法を書く
 - [ ] `docs/QUICK_START_GUIDE.md`・`docs/USER_MANUAL.md`を実際の同梱物(PDF化等)として整え、画面の実文言と差異がないか最終確認する
 - [ ] `docs/BETA_TEST_OBSERVATION_SHEET.md`を使ってベータ利用者(5〜10人)を募集し、観察記録を取る
 - [ ] 観察結果を`docs/02_DEVELOPMENT_PHASES.md`のリリース判断基準(重大な計算誤り・データ消失・復元不能・秘密情報漏えい・発行済み書類の変化が1件でもあれば正式販売しない)に照らして、正式販売の可否を判断する
