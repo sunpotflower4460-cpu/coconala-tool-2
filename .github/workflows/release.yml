@@ -6,7 +6,47 @@ on:
       - "v*"
 
 jobs:
+  gate:
+    name: Release gate
+    runs-on: ubuntu-latest
+    outputs:
+      mode: ${{ steps.tag.outputs.mode }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Classify tag
+        id: tag
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "mode=strict" >> "$GITHUB_OUTPUT"
+          elif [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]]; then
+            echo "mode=rc" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=basic" >> "$GITHUB_OUTPUT"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+      - name: Release check (strict / official tag)
+        if: steps.tag.outputs.mode == 'strict'
+        run: pnpm check:release -- --strict
+      - name: Release check (RC tag)
+        if: steps.tag.outputs.mode == 'rc'
+        run: pnpm check:release -- --rc
+      - name: Release check (other v* tags)
+        if: steps.tag.outputs.mode == 'basic'
+        run: pnpm check:release
+      - name: Do not treat human verification as done
+        run: |
+          echo "このジョブはコード上のゲートだけを確認します。"
+          echo "macOS実機・署名・公証・PDF目視・実API・βテストは docs/RELEASE_EVIDENCE.md の人間確認欄であり、ここで完了扱いしません。"
+
   draft-release:
+    needs: [gate]
     strategy:
       fail-fast: false
       matrix:
@@ -29,6 +69,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # 署名・公証用の秘密情報はGitHub Secretsへ登録してから有効化する。
       # 未設定の間は署名なしビルドが作られる。docs/MANUAL_STEPS.mdを参照。
+      # 秘密情報が設定されていても、人間が RELEASE_EVIDENCE.md の署名・公証欄を
+      # 記入するまで「署名済み」「公証済み」と案内しない。
+      # Windows成果物は初回販売対象外(docs/SUPPORTED_PLATFORMS.md)。CI成功 ≠ 正式対応。
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -44,5 +87,5 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: "mitsumori-desk ${{ github.ref_name }}"
           releaseDraft: true
-          prerelease: false
+          prerelease: ${{ needs.gate.outputs.mode == 'rc' }}
           args: ${{ matrix.args }}

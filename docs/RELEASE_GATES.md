@@ -53,17 +53,21 @@
 
 以下がすべて揃うまで正式タグは作成しない。
 
-- `pnpm check:release -- --strict` が通過する(プレースホルダーなし、publisher/copyright設定済み、バージョン3箇所一致、CHANGELOG記載あり)
+- `pnpm check:release -- --strict` が通過する(プレースホルダーなし、publisher/copyright設定済み、サポート窓口確定、バージョン3箇所一致、CHANGELOGに対象バージョンの見出し、秘密情報なし、自動更新未実装の明記、販売OS表記の一致)
 - CIがgreen(lint / format / typecheck / migration check / unit / integration / Rust fmt・clippy・test / build)
 - macOS署名・公証用のGitHub Secretsが設定済み(`docs/MANUAL_STEPS.md` Phase5)
 - 利用規約・免責事項が専門家レビュー済みで`_DRAFT`が外れている
 - サポート窓口が確定している
-- テスト証跡・ベータサインオフが揃っている
+- テスト証跡・ベータサインオフが揃っている(`docs/RELEASE_EVIDENCE.md`)
 
-`pnpm check:release -- --strict`(または`RELEASE_STRICT=1 pnpm check:release`)は、
-現時点ではCIワークフローに自動配線していない。正式タグ用のリリースジョブを追加する際
-(署名・公証・DMG作成を扱うPR、`.github/workflows/release.yml`の拡張)に、
-正式タグのビルドでのみこのstrictモードを呼び出し、未確定情報が残っていればジョブを失敗させること。
+`.github/workflows/release.yml` はタグ種別に応じてゲートを分岐する。
+
+- 正式タグ `vX.Y.Z`(rcを含まない): `pnpm check:release -- --strict` を必須にし、未確定情報があればジョブを失敗させる(exit code 1)
+- RCタグ `vX.Y.Z-rc.N`: `pnpm check:release -- --rc` を実行する。規約DRAFTやpublisher空は許容するが、バージョン不一致・秘密情報・販売OS表記の矛盾・自動更新未実装の未記載では失敗する
+- 上記以外の `v*` タグ: 非strictの `pnpm check:release` のみ
+
+いずれの場合も、GitHub Actionsは人間確認(実機・署名・公証・PDF目視・実API・β)を完了扱いにしない。それらは `docs/RELEASE_EVIDENCE.md` の人間確認欄へ記録する。
+
 `ci.yml`(通常のPR/main向けCI)では非strictモード(`pnpm check:release`)のみを実行し、
 開発中に残っている下書きプレースホルダーでCI自体は落とさない。
 
@@ -84,5 +88,7 @@
 
 - [`docs/MANUAL_STEPS.md`](MANUAL_STEPS.md) — 人間だけが行う作業(証明書取得・Secrets登録・法的文言確定等)
 - [`docs/RELEASE_PROCESS.md`](RELEASE_PROCESS.md) — タグ作成からGitHub Release公開までの手順
+- [`docs/RELEASE_EVIDENCE.md`](RELEASE_EVIDENCE.md) — 自動確認と人間確認を分けた証跡欄
+- [`docs/SUPPORTED_PLATFORMS.md`](SUPPORTED_PLATFORMS.md) — 販売上の公式対応OS
 - [`docs/04_ACCEPTANCE_CHECKLIST.md`](04_ACCEPTANCE_CHECKLIST.md) — 機能・データ安全性・セキュリティの詳細チェックリスト
 - [`docs/ADR/0008-license-and-update-boundaries.md`](ADR/0008-license-and-update-boundaries.md) — ライセンス・更新確認の設計境界

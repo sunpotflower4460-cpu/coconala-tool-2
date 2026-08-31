@@ -1,0 +1,23 @@
+{
+  "$comment": "販売上の公式対応OSの機械可読な正本。CIでビルドできることと、購入者へ正式対応と案内することは別。人間の実機確認が終わるまで firstSale に OS を追加しない。",
+  "firstSale": ["macos"],
+  "pendingDeviceVerification": ["windows"],
+  "ciOnly": ["linux"],
+  "buyerFacingFiles": [
+    "README.md",
+    "docs/USER_MANUAL.md",
+    "docs/QUICK_START_GUIDE.md",
+    "docs/COCONALA_LISTING.md",
+    "src/features/help/HelpPage.tsx"
+  ],
+  "forbiddenOfficialClaims": {
+    "windows": [
+      "macOS / Windows向け",
+      "Windows向け買い切り",
+      "Windows正式対応",
+      "Windows対応済み",
+      "Windowsの対応バージョンへインストールできる"
+    ],
+    "linux": ["Linux向け買い切り", "Linux正式対応"]
+  }
+}
