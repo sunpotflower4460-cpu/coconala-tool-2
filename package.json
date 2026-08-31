@@ -25,7 +25,9 @@
     "check:migrations": "node scripts/check-migrations.mjs",
     "check:release": "node scripts/verify-release.mjs",
     "check:release:rc": "node scripts/verify-release.mjs --rc",
-    "check:release:strict": "node scripts/verify-release.mjs --strict"
+    "check:release:strict": "node scripts/verify-release.mjs --strict",
+    "seed:stress": "MITSUMORI_ALLOW_STRESS_SEED=1 node scripts/seed-stress.mjs",
+    "seed:stress:ci": "MITSUMORI_ALLOW_STRESS_SEED=1 node scripts/seed-stress.mjs --profile=ci"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

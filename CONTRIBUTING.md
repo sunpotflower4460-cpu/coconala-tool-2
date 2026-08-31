@@ -38,6 +38,8 @@ pnpm tauri dev
 | `pnpm check:release`        | リリース前チェック(basic。プレースホルダーは警告)                          |
 | `pnpm check:release:rc`     | RCタグ用チェック(秘密情報・OS表記・更新未実装の明記を必須)                 |
 | `pnpm check:release:strict` | 正式タグ用の厳格判定(プレースホルダー・DRAFT・窓口未確定でも失敗)          |
+| `pnpm seed:stress`          | 開発専用の大量データ生成(既定は full。本番アプリからは実行不可)            |
+| `pnpm seed:stress:ci`       | 同上の小さいプロファイル(CI/自動テスト向け)                                |
 | `pnpm rust:fmt:check`       | Rust fmtチェック                                                           |
 | `pnpm rust:clippy`          | Rust clippy (警告をエラー扱い)                                             |
 | `pnpm rust:test`            | Rustのテスト                                                               |
