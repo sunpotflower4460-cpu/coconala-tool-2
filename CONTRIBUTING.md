@@ -59,6 +59,9 @@ pnpm tauri dev
 - [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) — DBスキーマと金額計算仕様
 - [`docs/SECURITY.md`](docs/SECURITY.md) — セキュリティ方針
 - [`docs/MANUAL_STEPS.md`](docs/MANUAL_STEPS.md) — 人間だけが行う作業一覧
+- [`docs/HUMAN_RELEASE_CHECKLIST.md`](docs/HUMAN_RELEASE_CHECKLIST.md) — 発売直前に人間が上から実施する順
+- [`docs/COCONALA_LISTING.md`](docs/COCONALA_LISTING.md) — ココナラ出品文の下書き
+- [`docs/CURSOR_COMPLETION_REPORT.md`](docs/CURSOR_COMPLETION_REPORT.md) — Cursor作業範囲と残作業
 - [`docs/ADR/`](docs/ADR/) — 技術判断の記録
 
 ## ブランチ運用
