@@ -5,6 +5,7 @@ import {
   confirmDangerDialog,
   createAppSession,
   ensureOnboarded,
+  waitForAppReady,
   waitForRootText,
 } from "../helpers/flows.mjs";
 
