@@ -99,7 +99,7 @@ export function AiSettingsPage() {
       <p className="hint">
         この機能を使うには、契約しているAIサービス(Anthropic社等)のAPIキーが必要です。
         AIサービスの利用料金はご自身の契約に基づき発生し、購入者(あなた)のご負担となります。
-        本アプリの購入代金には含まれません。
+        本アプリの購入代金には含まれません。AIの結果は最終決定ではありません。金額は発行前に必ずご自身で確認してください。
       </p>
       {errorMessage && <ErrorBanner message={errorMessage} />}
       <form

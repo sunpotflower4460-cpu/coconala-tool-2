@@ -11,6 +11,7 @@ export type AiErrorCode =
   | "timeout"
   | "cancelled"
   | "invalid_api_key"
+  | "forbidden"
   | "rate_limited"
   | "server_error"
   | "invalid_response"

@@ -1,12 +1,17 @@
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createCatalogItem } from "@/application/commands/catalog-item.commands";
 import { confirmInquiryExtraction } from "@/application/commands/confirm-inquiry-extraction.command";
+import { buildDiagnosticsReport } from "@/application/commands/build-diagnostics-report.command";
 import { runInquiryExtraction } from "@/application/commands/run-inquiry-extraction.command";
 import { saveEstimateDraft } from "@/application/commands/save-estimate-draft.command";
 import type { DatabasePort } from "@/application/ports/database";
 import { AI_API_KEY_SECRET_NAME, type SecretStore } from "@/application/ports/secret-store";
 import { createFakeSecretStore } from "@/lib/test-utils/fake-secret-store";
 import { FakeAiProvider } from "@/lib/test-utils/fake-ai-provider";
+import { createFakeSystemInfoProvider } from "@/lib/test-utils/fake-system-info-provider";
 import { createTestDatabase } from "@/lib/test-utils/sqlite";
 import { err, ok } from "@/lib/result";
 
@@ -142,5 +147,41 @@ describe("runInquiryExtraction", () => {
     );
     expect(rows[0]?.confirmed).toBe(1);
     expect(rows[0]?.document_id).toBe(draft.value.header.id);
+  });
+});
+
+describe("APIキーの混入防止", () => {
+  it("抽出成功後もSQLiteと診断JSONにAPIキーが含まれない", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "ai-key-scan-"));
+    const dbPath = join(dir, "app.db");
+    try {
+      const db = createTestDatabase(dbPath);
+      const secretStore = createFakeSecretStore();
+      const apiKey = "sk-ant-api03-LEAKSCANKEYVALUE1234567890ABCD";
+      await secretStore.set(AI_API_KEY_SECRET_NAME, apiKey);
+      const provider = new FakeAiProvider({
+        extractionResult: ok({
+          summary: "依頼",
+          requestedDueDate: null,
+          items: [],
+          globalQuestions: [],
+        }),
+      });
+      const result = await runInquiryExtraction(db, provider, secretStore, "テスト依頼文", null);
+      expect(result.ok).toBe(true);
+
+      const sqliteBytes = readFileSync(dbPath);
+      expect(sqliteBytes.includes(Buffer.from(apiKey, "utf8"))).toBe(false);
+
+      const report = await buildDiagnosticsReport(db, createFakeSystemInfoProvider());
+      expect(report.ok).toBe(true);
+      if (report.ok) {
+        const serialized = JSON.stringify(report.value);
+        expect(serialized).not.toContain(apiKey);
+        expect(serialized).not.toContain("sk-ant");
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
