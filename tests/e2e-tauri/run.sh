@@ -53,4 +53,4 @@ fi
 
 E2E_TAURI_BINARY="$BINARY" \
 E2E_TAURI_DRIVER_PORT="$TAURI_DRIVER_PORT" \
-node --test "$ROOT_DIR"/tests/e2e-tauri/scenarios/*.test.mjs
+node --test --test-concurrency=1 "$ROOT_DIR"/tests/e2e-tauri/scenarios/*.test.mjs

@@ -31,6 +31,14 @@ describe("parseCsv", () => {
     ]);
   });
 
+  it("空行は無視する", () => {
+    const rows = parseCsv("顧客名,担当者名\n\nサンプル株式会社,山田太郎\n\n");
+    expect(rows).toEqual([
+      ["顧客名", "担当者名"],
+      ["サンプル株式会社", "山田太郎"],
+    ]);
+  });
+
   it("空文字列は空配列を返す", () => {
     expect(parseCsv("")).toEqual([]);
   });

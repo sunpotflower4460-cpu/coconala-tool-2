@@ -15,6 +15,18 @@ describe("guessColumnMapping", () => {
     expect(mapping.email).toBe(2);
     expect(mapping.address).toBeNull();
   });
+
+  it("列順が違っても列名でマッピングする", () => {
+    const mapping = guessColumnMapping(["メールアドレス", "顧客名"], CLIENT_CSV_FIELDS);
+    expect(mapping.email).toBe(0);
+    expect(mapping.name).toBe(1);
+  });
+
+  it("余分な列は無視し、不足している必須列は null になる", () => {
+    const mapping = guessColumnMapping(["備考", "余計な列"], CLIENT_CSV_FIELDS);
+    expect(mapping.name).toBeNull();
+    expect(mapping.note).toBe(0);
+  });
 });
 
 describe("validateClientRows", () => {
