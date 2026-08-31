@@ -8,6 +8,7 @@ import {
   guessColumnMapping,
 } from "@/domain/csv/fields";
 import { parseCsv } from "@/domain/csv/parse";
+import { decodeCsvBytes } from "@/domain/csv/encoding";
 import { validateCatalogItemRows } from "@/domain/csv/validate-catalog-item-rows";
 import { validateClientRows } from "@/domain/csv/validate-client-rows";
 import { listClients } from "@/application/queries/list-clients.query";
@@ -107,4 +108,92 @@ describe("importCatalogItemsCsv", () => {
     expect(items).toHaveLength(2);
     expect(items.find((item) => item.name === "サムネイル")?.taxCategory).toBe("taxable_8");
   });
+
+  it("列順が違っても列名で取り込む", async () => {
+    const rows = parseCsv("単価,商品名,単位\n8000,ロゴ制作,式\n");
+    const [header, ...dataRows] = rows;
+    const mapping = guessColumnMapping(header!, CATALOG_ITEM_CSV_FIELDS);
+    const validated = validateCatalogItemRows(dataRows, mapping);
+    const summary = await importCatalogItemsCsv(db, validated, "skip");
+    expect(summary.imported).toBe(1);
+    const items = await listCatalogItems(db);
+    expect(items[0]?.name).toBe("ロゴ制作");
+    expect(items[0]?.unitPriceYen).toBe(8000);
+  });
+
+  it("余分な列があっても必須列があれば取り込む", async () => {
+    const rows = parseCsv("商品名,単位,単価,税区分,社内メモ\n撮影,時間,12000,,捨てる列\n");
+    const [header, ...dataRows] = rows;
+    const mapping = guessColumnMapping(header!, CATALOG_ITEM_CSV_FIELDS);
+    const validated = validateCatalogItemRows(dataRows, mapping);
+    const summary = await importCatalogItemsCsv(db, validated, "skip");
+    expect(summary.imported).toBe(1);
+  });
+
+  it("必須列が無い場合は全行失敗になる", async () => {
+    const rows = parseCsv("単位,税区分\n本,taxable_10\n");
+    const [header, ...dataRows] = rows;
+    const mapping = guessColumnMapping(header!, CATALOG_ITEM_CSV_FIELDS);
+    const validated = validateCatalogItemRows(dataRows, mapping);
+    const summary = await importCatalogItemsCsv(db, validated, "skip");
+    expect(summary.imported).toBe(0);
+    expect(summary.failed).toBe(1);
+  });
+
+  it("UTF-8 BOM付き日本語CSVを取り込める", async () => {
+    const bom = new Uint8Array([0xef, 0xbb, 0xbf]);
+    const body = new TextEncoder().encode("商品名,単位,単価\n日本語商品名,式,1000\n");
+    const merged = new Uint8Array(bom.length + body.length);
+    merged.set(bom, 0);
+    merged.set(body, bom.length);
+    const { text } = decodeCsvBytes(merged.buffer);
+    const rows = parseCsv(text);
+    const [header, ...dataRows] = rows;
+    const mapping = guessColumnMapping(header!, CATALOG_ITEM_CSV_FIELDS);
+    const validated = validateCatalogItemRows(dataRows, mapping);
+    const summary = await importCatalogItemsCsv(db, validated, "skip");
+    expect(summary.imported).toBe(1);
+    const items = await listCatalogItems(db);
+    expect(items.some((item) => item.name === "日本語商品名")).toBe(true);
+  });
+
+  it("空行を含むCSVでも正常行だけ取り込む", async () => {
+    const rows = parseCsv("商品名,単位,単価\n\n空行の後,式,2000\n\n");
+    const [header, ...dataRows] = rows;
+    const mapping = guessColumnMapping(header!, CATALOG_ITEM_CSV_FIELDS);
+    const validated = validateCatalogItemRows(dataRows, mapping);
+    const summary = await importCatalogItemsCsv(db, validated, "skip");
+    expect(summary.imported).toBe(1);
+    expect(summary.failed).toBe(0);
+  });
+
+  it("重複データは skip で2回目に増やさない", async () => {
+    const rows = parseCsv("商品名,単位,単価\n重複商品,式,3000\n");
+    const [header, ...dataRows] = rows;
+    const mapping = guessColumnMapping(header!, CATALOG_ITEM_CSV_FIELDS);
+    const validated = validateCatalogItemRows(dataRows, mapping);
+    await importCatalogItemsCsv(db, validated, "skip");
+    const second = await importCatalogItemsCsv(db, validated, "skip");
+    expect(second.skipped).toBe(1);
+    expect(second.imported).toBe(0);
+    expect(await listCatalogItems(db)).toHaveLength(1);
+  });
+
+  it("5000件の価格表CSVをクラッシュせず取り込める", async () => {
+    const lines = ["商品名,単位,単価"];
+    for (let index = 0; index < 5000; index += 1) {
+      lines.push(`大量商品${index},個,${1000 + (index % 50)}`);
+    }
+    const rows = parseCsv(lines.join("\n"));
+    const [header, ...dataRows] = rows;
+    const mapping = guessColumnMapping(header!, CATALOG_ITEM_CSV_FIELDS);
+    const validated = validateCatalogItemRows(dataRows, mapping);
+    const started = Date.now();
+    const summary = await importCatalogItemsCsv(db, validated, "skip");
+    const elapsedMs = Date.now() - started;
+    expect(summary.imported).toBe(5000);
+    expect(summary.failed).toBe(0);
+    expect(await listCatalogItems(db)).toHaveLength(5000);
+    console.warn(`csv-import 5000件: ${elapsedMs}ms (宣伝文句には使わない計測値)`);
+  }, 60_000);
 });

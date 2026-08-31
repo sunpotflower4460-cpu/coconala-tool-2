@@ -102,6 +102,36 @@ describe("convertDocument", () => {
 
     const sourceAfter = await getDocument(db, estimate.id);
     expect(sourceAfter?.status).toBe("issued");
+    expect(sourceAfter?.companySnapshot?.displayName).toBe("サンプル制作合同会社");
+    expect(sourceAfter?.totalYen).toBe(110000);
+  });
+
+  it("変換後に会社名を変えても、元見積の発行時スナップショットは変化しない", async () => {
+    const estimate = await seedIssuedEstimate(db);
+    await convertDocument(db, estimate.id, "delivery_note");
+    await saveCompany(db, {
+      displayName: "変換後に変えた会社名",
+      representativeName: null,
+      postalCode: null,
+      address: null,
+      phone: null,
+      email: null,
+      invoiceRegistrationNumber: null,
+      bankName: null,
+      bankBranchName: null,
+      bankAccountType: null,
+      bankAccountNumber: null,
+      bankAccountHolder: null,
+      logoPath: null,
+      estimateValidDays: null,
+      paymentDueDays: null,
+      defaultNote: null,
+    });
+
+    const sourceAfter = await getDocument(db, estimate.id);
+    expect(sourceAfter?.companySnapshot?.displayName).toBe("サンプル制作合同会社");
+    expect(sourceAfter?.totalYen).toBe(110000);
+    expect(sourceAfter?.lines[0]?.name).toBe("動画編集");
   });
 
   it("請求書は領収書へ変換でき、元の請求書は入金済みになる", async () => {
