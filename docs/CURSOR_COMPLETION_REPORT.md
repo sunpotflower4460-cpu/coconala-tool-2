@@ -15,7 +15,7 @@
 | PR-10 PDF fixture            | `cursor/pdf-visual-fb96`         | https://github.com/sunpotflower4460-cpu/coconala-tool-2/pull/11 |
 | PR-11 AI販売品質             | `cursor/ai-hardening-fb96`       | https://github.com/sunpotflower4460-cpu/coconala-tool-2/pull/12 |
 | PR-12 ヘルプ/エラー          | `cursor/help-self-support-fb96`  | https://github.com/sunpotflower4460-cpu/coconala-tool-2/pull/13 |
-| PR-13 販売パッケージ         | `cursor/coconala-packaging-fb96` | (このブランチ)                                                  |
+| PR-13 販売パッケージ         | `cursor/coconala-packaging-fb96` | https://github.com/sunpotflower4460-cpu/coconala-tool-2/pull/14 |
 
 独立レビュー: 同一エージェントによる実装後の再読。マージ前に別視点の Critical / Major 確認を残す。
 
