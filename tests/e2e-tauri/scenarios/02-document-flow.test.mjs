@@ -3,8 +3,10 @@ import { test } from "node:test";
 import {
   clickNav,
   confirmDangerDialog,
+  convertToDraft,
   createAppSession,
   ensureOnboarded,
+  openEstimateList,
   waitForRootText,
 } from "../helpers/flows.mjs";
 
@@ -15,7 +17,7 @@ test("見積を発行し、請求書・納品書・領収書へ変換しても�
   });
 
   await ensureOnboarded(client);
-  await clickNav(client, "見積書");
+  await openEstimateList(client);
   await waitForRootText(client, /E2Eテスト株式会社/, 10000);
   await client.$("a=開く").click();
   await waitForRootText(client, /E2Eテスト株式会社/, 10000);
@@ -42,7 +44,7 @@ test("見積を発行し、請求書・納品書・領収書へ変換しても�
   await client.$("button=保存する").click();
   await waitForRootText(client, /保存しました/, 10000);
 
-  await clickNav(client, "見積書");
+  await openEstimateList(client);
   await waitForRootText(client, /発行済み/, 10000);
   await client.$("a=開く").click();
   await waitForRootText(client, /発行済み/, 10000);
@@ -54,34 +56,31 @@ test("見積を発行し、請求書・納品書・領収書へ変換しても�
   assert.match(previewText, /￥11,000/, "発行時の合計が印刷プレビューでも残る");
 
   await client.$("button=ホームに戻る").click();
-  await clickNav(client, "見積書");
+  await openEstimateList(client);
   await waitForRootText(client, /発行済み/, 10000);
   await client.$("a=開く").click();
   await waitForRootText(client, /発行済み/, 10000);
 
-  await client.$("button=納品書に変換").click();
-  await waitForRootText(client, /納品書/, 15000);
+  await convertToDraft(client, "納品書に変換", /納品書\(下書き\)を編集/);
 
-  await clickNav(client, "見積書");
-  await waitForRootText(client, /発行済み|請求済み/, 10000);
+  await openEstimateList(client);
+  await waitForRootText(client, /発行済み/, 10000);
   await client.$("a=開く").click();
-  await waitForRootText(client, /発行済み|請求済み/, 10000);
+  await waitForRootText(client, /発行済み/, 10000);
 
-  await client.$("button=請求書に変換").click();
-  await waitForRootText(client, /請求書/, 15000);
+  await convertToDraft(client, "請求書に変換", /請求書\(下書き\)を編集/);
   const invoiceDraft = await client.$("#root").getText();
-  assert.match(invoiceDraft, /請求書/, "請求書の下書きへ遷移する");
+  assert.match(invoiceDraft, /請求書\(下書き\)を編集/, "請求書の下書きへ遷移する");
 
   await client.$("button=発行する").click();
   await confirmDangerDialog(client, /発行しますか/);
   await waitForRootText(client, /発行済み/, 15000);
 
-  await client.$("button=領収書に変換").click();
-  await waitForRootText(client, /領収書/, 15000);
+  await convertToDraft(client, "領収書に変換", /領収書\(下書き\)を編集/);
   const receiptDraft = await client.$("#root").getText();
-  assert.match(receiptDraft, /領収書/, "領収書の下書きへ遷移する");
+  assert.match(receiptDraft, /領収書\(下書き\)を編集/, "領収書の下書きへ遷移する");
 
-  await clickNav(client, "見積書");
+  await openEstimateList(client);
   await waitForRootText(client, /E2Eテスト株式会社/, 10000);
   await client.$("a=開く").click();
   await client.$("a=印刷プレビューを開く").waitForDisplayed({ timeout: 10000 });

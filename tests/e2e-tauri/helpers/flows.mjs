@@ -8,6 +8,17 @@ export async function clickNav(client, label) {
   await link.click();
 }
 
+export async function openEstimateList(client) {
+  await clickNav(client, "見積書");
+  await waitForRootText(client, /見積書一覧/, 10000);
+}
+
+export async function convertToDraft(client, buttonLabel, draftHeading) {
+  await client.$(`button=${buttonLabel}`).click();
+  // 「納品書」だけだと変換ボタン「納品書に変換」に即マッチし、遷移前に次へ進む。
+  await waitForRootText(client, draftHeading, 15000);
+}
+
 export async function confirmDangerDialog(client, titlePattern, timeout = 10000) {
   const title = await client.$("#confirm-dialog-title");
   await title.waitForDisplayed({ timeout });
