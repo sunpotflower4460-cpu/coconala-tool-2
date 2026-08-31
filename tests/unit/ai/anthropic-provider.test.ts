@@ -80,14 +80,12 @@ describe("AnthropicProvider", () => {
   it("壊れたJSONはinvalid_responseを返す(通信エラーにしない)", async () => {
     vi.stubGlobal(
       "fetch",
-      vi
-        .fn()
-        .mockResolvedValue(
-          new Response("{not-json", {
-            status: 200,
-            headers: { "content-type": "application/json" },
-          }),
-        ),
+      vi.fn().mockResolvedValue(
+        new Response("{not-json", {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
     );
     const provider = new AnthropicProvider();
     const result = await provider.extractInquiry(
