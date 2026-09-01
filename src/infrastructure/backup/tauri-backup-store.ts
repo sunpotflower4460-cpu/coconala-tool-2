@@ -32,7 +32,7 @@ export const tauriBackupStore: BackupStore = {
     return raw.map(mapBackupInfo);
   },
   async restore(backupFileName: string, preRestoreLabel: string): Promise<void> {
-    await invoke("restore_database", { backupFileName, preRestoreLabel });
+    await invoke("restore_database_safe", { backupFileName, preRestoreLabel });
   },
   async exportTo(backupFileName: string): Promise<string | null> {
     const destinationPath = await save({ defaultPath: backupFileName });

@@ -59,7 +59,7 @@ pub fn run() {
             commands::secrets::secret_delete,
             commands::backup::backup_database,
             commands::backup::list_backups,
-            commands::backup::restore_database,
+            commands::safe_restore::restore_database_safe,
             commands::backup::export_backup_to,
             commands::backup::import_backup_from,
             commands::diagnostics::get_system_diagnostics,
