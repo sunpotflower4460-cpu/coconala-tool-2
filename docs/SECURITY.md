@@ -26,6 +26,7 @@ OS標準の資格情報ストア(macOS Keychain / Windows Credential Manager / L
 - 更新処理用の権限は別Capabilityへ分離する(Phase 5)。
 - 診断ファイル書き出しは、許可した保存先のみに制限する(Phase 4)。
 - 任意のShellコマンド実行権限(`shell:allow-execute`等)は付与しない。
+- 外部から選んだバックアップファイルは、SQLiteを開く前にサイズを確認する。アプリ自身が作成したバックアップをサイズだけで破棄しない。
 
 ## 診断ファイル
 

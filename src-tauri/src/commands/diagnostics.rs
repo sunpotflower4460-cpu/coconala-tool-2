@@ -3,6 +3,7 @@ use std::fs;
 use tauri::AppHandle;
 
 use super::backup::{db_path, read_schema_version};
+use crate::io_errors::{classify_std_io_error, format_operation_io_error};
 
 #[derive(serde::Serialize)]
 pub struct SystemDiagnostics {
@@ -36,5 +37,10 @@ pub fn write_text_file(path: String, content: String) -> Result<(), String> {
     if path.trim().is_empty() {
         return Err("保存先が指定されていません".to_string());
     }
-    fs::write(&path, content).map_err(|error| format!("ファイルの保存に失敗しました: {error}"))
+    fs::write(&path, content).map_err(|error| {
+        format_operation_io_error(
+            "ファイルの保存に失敗しました",
+            classify_std_io_error(&error),
+        )
+    })
 }

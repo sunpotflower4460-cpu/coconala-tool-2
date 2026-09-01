@@ -117,6 +117,16 @@
 
 ### Fixed
 
+- 販売前ハードニング: stress DBをSQLx互換の `_sqlx_migrations`(checksum含む)で生成するよう修正し、
+  実アプリ起動時の migration runner 失敗を防ぐ
+- schema version の手動固定をやめ、Rust は registered migrations から導出、TypeScript 定数は
+  `pnpm check:migrations` で最新 migration 番号と一致することを必須にした
+- アプリ自身が作ったバックアップを 512MiB だけで拒否・削除しない。512MiB 制限は外部importの
+  未信頼ファイルにだけ、SQLite を開く前に適用する
+- バックアップ I/O エラー分類を英語OSメッセージ文字列依存から `ErrorKind` / raw OS code /
+  SQLite error code へ変更し、購入者向けには権限・容量・ファイルなしの日本語だけを出す
+- `pnpm seed:stress` を POSIX の環境変数記法から Node launcher へ変え、Windows でも実行できるようにした
+
 - `sql:default`権限にAPI実行(`execute`)が含まれておらず会社情報保存が失敗する不具合を`sql:allow-execute`権限追加で修正
 - 請求書が発行後に直接入金済みへ遷移できない不具合(状態遷移表に`issued→paid`を追加)を修正
 - 複数SQL文にまたがる書き込み(見積保存・発行・変換・複製・状態変更・練習データ削除)で、`tauri-plugin-sql`のコネクションプールにより手動の`BEGIN`/`COMMIT`が別コネクションに振り分けられ`cannot commit - no transaction is active`が発生し保存が失敗する不具合を、専用コネクションによる原子的なトランザクション実行(`executeTransaction`)へ置き換えて修正(ADR 0007、実機確認で発見)
