@@ -38,7 +38,10 @@ fn remove_database_artifacts(path: &Path) {
 
 fn copy_with_sidecars(source: &Path, dest: &Path) -> Result<(), String> {
     fs::copy(source, dest).map_err(|error| {
-        format_operation_io_error("ファイルのコピーに失敗しました", classify_std_io_error(&error))
+        format_operation_io_error(
+            "ファイルのコピーに失敗しました",
+            classify_std_io_error(&error),
+        )
     })?;
 
     for suffix in SIDECAR_SUFFIXES {
@@ -61,39 +64,38 @@ fn vacuum_into(source: &Path, dest: &Path) -> Result<(), String> {
         return Err("バックアップ先に同名のファイルが既に存在します".to_string());
     }
 
-    let conn = rusqlite::Connection::open_with_flags(
-        source,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-    )
-    .map_err(|error| {
-        format_operation_io_error(
-            "データベースを開けませんでした",
-            classify_rusqlite_error(&error, None),
-        )
-    })?;
+    let conn =
+        rusqlite::Connection::open_with_flags(source, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .map_err(|error| {
+            format_operation_io_error(
+                "データベースを開けませんでした",
+                classify_rusqlite_error(&error, None),
+            )
+        })?;
     conn.busy_timeout(BUSY_TIMEOUT)
         .map_err(|_| "データベースの待機設定に失敗しました".to_string())?;
 
     let dest_str = dest
         .to_str()
         .ok_or_else(|| "バックアップ先のパスが不正です".to_string())?;
-    conn.execute("VACUUM INTO ?1", [dest_str]).map_err(|error| {
-        format_operation_io_error(
-            "バックアップの作成に失敗しました",
-            classify_rusqlite_error(&error, Some(dest)),
-        )
-    })?;
+    conn.execute("VACUUM INTO ?1", [dest_str])
+        .map_err(|error| {
+            format_operation_io_error(
+                "バックアップの作成に失敗しました",
+                classify_rusqlite_error(&error, Some(dest)),
+            )
+        })?;
     Ok(())
 }
 
 fn read_schema_version(path: &Path) -> Option<i64> {
-    let conn = rusqlite::Connection::open_with_flags(
-        path,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-    )
-    .ok()?;
-    conn.query_row("SELECT MAX(version) FROM _sqlx_migrations", [], |row| row.get(0))
-        .ok()
+    let conn =
+        rusqlite::Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .ok()?;
+    conn.query_row("SELECT MAX(version) FROM _sqlx_migrations", [], |row| {
+        row.get(0)
+    })
+    .ok()
 }
 
 fn verify_app_database(path: &Path) -> Result<(), String> {
@@ -112,11 +114,11 @@ fn verify_app_database(path: &Path) -> Result<(), String> {
         return Err("バックアップファイルが空です".to_string());
     }
 
-    let conn = rusqlite::Connection::open_with_flags(
-        path,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-    )
-    .map_err(|_| "バックアップファイルを開けませんでした(壊れている可能性があります)".to_string())?;
+    let conn =
+        rusqlite::Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .map_err(|_| {
+                "バックアップファイルを開けませんでした(壊れている可能性があります)".to_string()
+            })?;
 
     let integrity: String = conn
         .query_row("PRAGMA integrity_check", [], |row| row.get(0))
@@ -204,8 +206,10 @@ fn install_backup_with_rollback(
 ) -> Result<(), String> {
     remove_database_artifacts(db);
 
-    let install_result = copy_with_sidecars(backup_path, db)
-        .and_then(|_| verify_app_database(db).map_err(|error| format!("復元後データの検証に失敗しました: {error}")));
+    let install_result = copy_with_sidecars(backup_path, db).and_then(|_| {
+        verify_app_database(db)
+            .map_err(|error| format!("復元後データの検証に失敗しました: {error}"))
+    });
 
     match install_result {
         Ok(()) => Ok(()),
@@ -253,9 +257,8 @@ pub fn restore_database(
 
     let db = db_path(&app)?;
     let pre_restore_label = sanitize_label(&pre_restore_label)?;
-    let pre_restore_path = backups_dir.join(format!(
-        "mitsumori-desk-backup-{pre_restore_label}.db"
-    ));
+    let pre_restore_path =
+        backups_dir.join(format!("mitsumori-desk-backup-{pre_restore_label}.db"));
 
     let rollback_source = if db.exists() {
         vacuum_into(&db, &pre_restore_path)?;
@@ -322,8 +325,10 @@ mod tests {
 
     fn marker(path: &Path) -> String {
         let conn = rusqlite::Connection::open(path).unwrap();
-        conn.query_row("SELECT value FROM restore_marker LIMIT 1", [], |row| row.get(0))
-            .unwrap()
+        conn.query_row("SELECT value FROM restore_marker LIMIT 1", [], |row| {
+            row.get(0)
+        })
+        .unwrap()
     }
 
     #[test]
@@ -349,7 +354,8 @@ mod tests {
         write_app_db(&db, "old-live");
         write_app_db(&pre_restore, "old-safe");
 
-        let error = install_backup_with_rollback(&missing_backup, &db, Some(&pre_restore)).unwrap_err();
+        let error =
+            install_backup_with_rollback(&missing_backup, &db, Some(&pre_restore)).unwrap_err();
         assert!(error.contains("復元前の状態へ戻しました"));
         assert!(!error.contains("自動復旧にも失敗"));
         assert_eq!(marker(&db), "old-safe");
@@ -366,12 +372,8 @@ mod tests {
         fs::create_dir_all(&invalid_pre_restore).unwrap();
         write_app_db(&db, "old-live");
 
-        let error = install_backup_with_rollback(
-            &missing_backup,
-            &db,
-            Some(&invalid_pre_restore),
-        )
-        .unwrap_err();
+        let error = install_backup_with_rollback(&missing_backup, &db, Some(&invalid_pre_restore))
+            .unwrap_err();
         assert!(error.contains("自動復旧にも失敗しました"));
         assert!(!error.contains("復元前の状態へ戻しました"));
         assert!(error.contains("pre-restore-directory"));
