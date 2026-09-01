@@ -38,6 +38,22 @@ describe("reconcileCatalogCandidates", () => {
     );
     expect(result[0]?.confidence).toBe(1);
   });
+
+  it("無限大の信頼度を1にしない(AI-HALLUCINATION-02)", () => {
+    const result = reconcileCatalogCandidates(
+      [{ catalogItemId: 1, confidence: Number.POSITIVE_INFINITY, reason: "" }],
+      new Set([1]),
+    );
+    expect(result[0]?.confidence).toBe(0);
+  });
+
+  it("整数でない価格表IDは破棄する", () => {
+    const result = reconcileCatalogCandidates(
+      [{ catalogItemId: Number.NaN, confidence: 0.99, reason: "" }],
+      new Set([1]),
+    );
+    expect(result).toHaveLength(0);
+  });
 });
 
 describe("determineMatchStatus", () => {

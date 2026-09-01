@@ -6,6 +6,8 @@
 
 ### Added
 
+- 本番運用の故障モードカタログ(`docs/PRODUCTION_FAILURE_RISKS.md`)と、API・認証・通信・同時実行・データ不整合・ユーザー操作・外部障害・セキュリティの再現テスト
+- 発行確認ダイアログの連打防止
 - Phase 0: Tauri 2 + React + TypeScript + Viteのプロジェクト土台
 - Phase 0: Lint / Format / 型チェック / Rust fmt・clippy・test / Vitest / Playwright最小構成
 - Phase 0: GitHub Actions CI (frontend / rust / build)
@@ -114,6 +116,13 @@
   「診断情報をコピー」で問い合わせ用の要約を渡せるようにした
 - 正式販売化PR-13: ココナラ出品文下書き(`docs/COCONALA_LISTING.md`)、人間専用チェックリスト、
   Cursor作業完了報告。誇張表現は使わず、実機未確認を完了扱いにしない
+
+### Changed
+
+- 同一書類の同時発行は1回だけ成功し、発行済み明細を保存処理が消さないようにした
+- 書類番号プレフィックスの正規表現メタ文字をエスケープする
+- AI応答の非整数数量・非有限の信頼度を自動確定しない
+- 負の単価を税計算で拒否する
 
 ### Fixed
 

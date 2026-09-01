@@ -491,6 +491,7 @@ Tauriの権限は最小限にする。
 - CSV mapping
 - バックアップ・復元
 - AI JSON validation
+- 本番故障モード(API/認証/通信/同時実行/不整合/操作/外部障害/セキュリティ)。カタログは `docs/PRODUCTION_FAILURE_RISKS.md`
 
 ### UI / E2E
 

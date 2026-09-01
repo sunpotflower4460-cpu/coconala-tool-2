@@ -25,9 +25,9 @@ export function calculateDocumentTotals(
         "invalid_quantity",
       );
     }
-    if (!Number.isInteger(line.unitPriceYen)) {
+    if (!Number.isInteger(line.unitPriceYen) || line.unitPriceYen < 0) {
       throw new DomainError(
-        `単価は円の整数である必要があります: ${line.unitPriceYen}`,
+        `単価は0以上の円の整数である必要があります: ${line.unitPriceYen}`,
         "invalid_unit_price",
       );
     }

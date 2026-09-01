@@ -134,4 +134,18 @@ describe("calculateDocumentTotals", () => {
     ];
     expect(() => calculateDocumentTotals(lines, exclusive())).toThrow(/数量/);
   });
+
+  it("負の単価は受け付けない(USER-PRICE-01)", () => {
+    const lines: DocumentLineInput[] = [
+      { quantity: 1, unitPriceYen: -1000, taxCategory: "taxable_10" },
+    ];
+    expect(() => calculateDocumentTotals(lines, exclusive())).toThrow(/単価/);
+  });
+
+  it("数量が整数でない場合はエラーになる(USER-QTY-01)", () => {
+    const lines: DocumentLineInput[] = [
+      { quantity: Number.POSITIVE_INFINITY, unitPriceYen: 1000, taxCategory: "taxable_10" },
+    ];
+    expect(() => calculateDocumentTotals(lines, exclusive())).toThrow(/数量/);
+  });
 });

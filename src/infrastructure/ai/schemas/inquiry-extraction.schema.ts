@@ -7,14 +7,25 @@ import { z } from "zod";
  */
 export const catalogCandidateSchema = z.object({
   catalog_item_id: z.union([z.number(), z.string()]).transform((value) => Number(value)),
-  confidence: z.number(),
+  confidence: z.number().finite(),
   reason: z.string().default(""),
 });
+
+function normalizeQuantity(value: number | null): number | null {
+  if (value === null || !Number.isInteger(value)) {
+    return null;
+  }
+  return value;
+}
 
 export const extractedInquiryItemSchema = z.object({
   source_text: z.string(),
   normalized_name: z.string(),
-  quantity: z.number().nullable().default(null),
+  quantity: z
+    .number()
+    .nullable()
+    .default(null)
+    .transform((value) => normalizeQuantity(value)),
   unit: z.string().nullable().default(null),
   catalog_candidates: z.array(catalogCandidateSchema).default([]),
   status: z.enum(["matched", "review", "unresolved"]).optional(),

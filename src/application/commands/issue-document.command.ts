@@ -1,5 +1,5 @@
 import type { DatabasePort, TransactionStatement } from "@/application/ports/database";
-import { documentEventStatement } from "@/application/commands/document-events.helper";
+import { documentEventStatementIfPreviousWriteAffected } from "@/application/commands/document-events.helper";
 import { toAppError, type AppError } from "@/application/errors";
 import { getAppSettings } from "@/application/queries/get-app-settings.query";
 import { getCompany } from "@/application/queries/get-company.query";
@@ -108,9 +108,15 @@ export async function issueDocument(
           id,
         ],
       },
-      documentEventStatement(id, "issue", document.status, "issued"),
+      documentEventStatementIfPreviousWriteAffected(id, "issue", document.status, "issued"),
     ];
-    await db.executeTransaction(statements);
+    const results = await db.executeTransaction(statements);
+    if ((results[0]?.rowsAffected ?? 0) !== 1) {
+      return err({
+        code: "not_issuable",
+        message: "この書類は発行できる状態ではありません",
+      });
+    }
 
     const issued = await getDocument(db, id);
     if (!issued) {

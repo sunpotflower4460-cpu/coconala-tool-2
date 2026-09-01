@@ -22,4 +22,12 @@ describe("nextDocumentSequence", () => {
     const existing = ["EST-2025-0099", "INV-2026-0099"];
     expect(nextDocumentSequence(existing, "EST", 2026)).toBe(1);
   });
+
+  it("プレフィックスに正規表現メタ文字があってもクラッシュせずリテラルとして扱う(DOC-NUM-01)", () => {
+    expect(() => nextDocumentSequence(["EST(-2026-0001"], "EST(", 2026)).not.toThrow();
+    expect(nextDocumentSequence(["EST(-2026-0001"], "EST(", 2026)).toBe(2);
+    // 未エスケープだと EST. は ESTX にもマッチしてしまう
+    expect(nextDocumentSequence(["ESTX-2026-0009"], "EST.", 2026)).toBe(1);
+    expect(nextDocumentSequence(["EST.-2026-0009"], "EST.", 2026)).toBe(10);
+  });
 });

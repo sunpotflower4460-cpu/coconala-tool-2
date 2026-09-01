@@ -95,3 +95,62 @@ pub fn execute_transaction(
 
     Ok(results)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{json_to_sql_value, TransactionStatementResult};
+    use rusqlite::types::Value as SqlValue;
+    use serde_json::json;
+
+    fn previous(last_insert_id: i64) -> Vec<TransactionStatementResult> {
+        vec![TransactionStatementResult {
+            rows_affected: 1,
+            last_insert_id,
+        }]
+    }
+
+    #[test]
+    fn json_null_bool_string_and_integer_convert() {
+        let previous_results = previous(42);
+        assert!(matches!(
+            json_to_sql_value(&json!(null), &previous_results).unwrap(),
+            SqlValue::Null
+        ));
+        assert_eq!(
+            json_to_sql_value(&json!(true), &previous_results).unwrap(),
+            SqlValue::Integer(1)
+        );
+        assert_eq!(
+            json_to_sql_value(&json!("顧客'; DROP TABLE clients;--"), &previous_results).unwrap(),
+            SqlValue::Text("顧客'; DROP TABLE clients;--".to_string())
+        );
+        assert_eq!(
+            json_to_sql_value(&json!(7), &previous_results).unwrap(),
+            SqlValue::Integer(7)
+        );
+    }
+
+    #[test]
+    fn json_array_params_are_rejected() {
+        let error = json_to_sql_value(&json!([1, 2]), &[]).unwrap_err();
+        assert!(error.contains("配列はSQLパラメータとして使用できません"));
+    }
+
+    #[test]
+    fn json_object_without_ref_is_rejected() {
+        let error = json_to_sql_value(&json!({"evil": 1}), &[]).unwrap_err();
+        assert!(error.contains("$ref"));
+    }
+
+    #[test]
+    fn json_ref_resolves_to_previous_insert_id() {
+        let value = json_to_sql_value(&json!({ "$ref": 0 }), &previous(99)).unwrap();
+        assert_eq!(value, SqlValue::Integer(99));
+    }
+
+    #[test]
+    fn json_ref_out_of_range_is_rejected() {
+        let error = json_to_sql_value(&json!({ "$ref": 3 }), &previous(1)).unwrap_err();
+        assert!(error.contains("参照先のSQL実行結果が見つかりません"));
+    }
+}

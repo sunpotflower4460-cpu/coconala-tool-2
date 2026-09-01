@@ -63,4 +63,21 @@ describe("DatabasePort.executeTransaction", () => {
     ]);
     expect(rows[0]?.note).toBe("自己参照テスト");
   });
+
+  it("直前のUPDATEが0件なら changes()>0 のINSERTは走らずロールバック対象にもならない", async () => {
+    const results = await db.executeTransaction([
+      {
+        sql: `UPDATE clients SET note = ? WHERE id = ?`,
+        params: ["ない", 999],
+      },
+      {
+        sql: `INSERT INTO clients (name, created_at, updated_at) SELECT ?, ?, ? WHERE changes() > 0`,
+        params: ["作られてはいけない", "2026-07-16T00:00:00.000Z", "2026-07-16T00:00:00.000Z"],
+      },
+    ]);
+    expect(results[0]?.rowsAffected).toBe(0);
+    expect(results[1]?.rowsAffected).toBe(0);
+    const rows = await db.select<{ count: number }>(`SELECT COUNT(*) as count FROM clients`);
+    expect(rows[0]?.count).toBe(0);
+  });
 });
