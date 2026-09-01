@@ -53,6 +53,7 @@ fn map_sqlite_io_error_for_dest(prefix: &str, error: rusqlite::Error, dest: &Pat
 fn map_std_io_error(prefix: &str, error: std::io::Error) -> String {
     format_operation_io_error(prefix, classify_std_io_error(&error))
 }
+
 // 生きているDBへ問い合わせる際、直近の書き込みトランザクションと競合しても
 // 待ってから読み取れるようにする(即座にSQLITE_BUSYで失敗させない)。
 const BUSY_TIMEOUT: Duration = Duration::from_millis(5000);
@@ -352,55 +353,6 @@ pub fn list_backups(app: AppHandle) -> Result<Vec<BackupInfo>, String> {
     }
     backups.sort_by(|a, b| b.file_name.cmp(&a.file_name));
     Ok(backups)
-}
-
-#[tauri::command]
-pub fn restore_database(
-    app: AppHandle,
-    backup_file_name: String,
-    pre_restore_label: String,
-) -> Result<(), String> {
-    let dir = backups_dir(&app)?;
-    reject_unsafe_file_name(&backup_file_name)?;
-    let backup_path = dir.join(&backup_file_name);
-    verify_internal_backup(&backup_path)?;
-
-    let db = db_path(&app)?;
-    let pre_restore_label = sanitize_label(&pre_restore_label)?;
-    let pre_restore_path = dir.join(format!("mitsumori-desk-backup-{pre_restore_label}.db"));
-
-    if db.exists() {
-        // 復元前退避も、生きているDBを読み取るためvacuum_intoで一貫したスナップショットを取る。
-        // ここで失敗、または退避データの整合性検証に失敗した場合は復元自体を開始しない。
-        vacuum_into(&db, &pre_restore_path)?;
-        if let Err(error) = verify_internal_backup(&pre_restore_path) {
-            remove_if_exists(&pre_restore_path);
-            return Err(format!(
-                "復元前の退避データの検証に失敗したため、復元を中止しました: {error}"
-            ));
-        }
-        let manifest = build_manifest(&app, read_schema_version(&pre_restore_path));
-        // メタデータの保存に失敗しても、退避データ自体は検証済みで有効なため復元は継続する。
-        let _ = write_manifest(&pre_restore_path, &manifest);
-    }
-
-    remove_if_exists(&append_suffix(&db, "-wal"));
-    remove_if_exists(&append_suffix(&db, "-shm"));
-    remove_if_exists(&append_suffix(&db, "-journal"));
-    remove_if_exists(&db);
-
-    if let Err(copy_error) = copy_with_sidecars(&backup_path, &db) {
-        // 復元に失敗した場合は直前に退避したデータへロールバックし、既存データを失わないようにする
-        if pre_restore_path.exists() {
-            remove_if_exists(&db);
-            let _ = copy_with_sidecars(&pre_restore_path, &db);
-        }
-        return Err(format!(
-            "復元に失敗したため元の状態へ戻しました: {copy_error}"
-        ));
-    }
-
-    Ok(())
 }
 
 // バックアップを外部フォルダ(購入者が選んだ任意の保存先)へコピーする。
