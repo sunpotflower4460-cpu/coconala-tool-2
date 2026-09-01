@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 use super::backup::{app_config_dir, db_path, BackupManifest};
 use crate::current_schema_version;
@@ -241,7 +241,7 @@ fn install_backup_with_rollback(
 }
 
 #[tauri::command]
-pub fn restore_database(
+pub fn restore_database_safe(
     app: AppHandle,
     backup_file_name: String,
     pre_restore_label: String,
