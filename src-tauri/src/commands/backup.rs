@@ -4,53 +4,54 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use tauri::{AppHandle, Manager};
 
+use crate::current_schema_version;
+use crate::io_errors::{classify_rusqlite_error, classify_std_io_error, format_operation_io_error};
+
 const DB_FILE_NAME: &str = "mitsumori-desk.db";
 const BACKUPS_DIR_NAME: &str = "backups";
 const SIDECAR_SUFFIXES: [&str; 3] = ["-wal", "-shm", "-journal"];
 const MANIFEST_SUFFIX: &str = ".manifest.json";
 const BACKUP_FORMAT_VERSION: u32 = 1;
-const CURRENT_SCHEMA_VERSION: i64 = 4;
-const MAX_BACKUP_BYTES: u64 = 512 * 1024 * 1024;
+pub(crate) const MAX_UNTRUSTED_BACKUP_BYTES: u64 = 512 * 1024 * 1024;
 
-fn reject_backup_file_size(size: u64) -> Result<(), String> {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum BackupSizePolicy {
+    Internal,
+    Imported,
+}
+
+fn reject_empty_backup(size: u64) -> Result<(), String> {
     if size == 0 {
         return Err("バックアップファイルが空です".to_string());
     }
-    if size > MAX_BACKUP_BYTES {
+    Ok(())
+}
+
+fn reject_untrusted_backup_file_size(size: u64) -> Result<(), String> {
+    reject_empty_backup(size)?;
+    if size > MAX_UNTRUSTED_BACKUP_BYTES {
         return Err("バックアップファイルが大きすぎます".to_string());
     }
     Ok(())
 }
 
-fn map_sqlite_io_error(prefix: &str, error: rusqlite::Error) -> String {
-    classify_sqlite_io_message(prefix, &error.to_string())
+fn apply_backup_size_policy(size: u64, policy: BackupSizePolicy) -> Result<(), String> {
+    match policy {
+        BackupSizePolicy::Internal => reject_empty_backup(size),
+        BackupSizePolicy::Imported => reject_untrusted_backup_file_size(size),
+    }
 }
 
-fn classify_sqlite_io_message(prefix: &str, text: &str) -> String {
-    if text.contains("database is locked") || text.contains("SQLITE_BUSY") {
-        return format!("{prefix}。少し時間を置いてもう一度お試しください。");
-    }
-    if text.contains("SQLITE_FULL") || text.contains("No space") || text.contains("disk is full") {
-        return format!("{prefix}。ディスクの空き容量を確認してください。");
-    }
-    if text.contains("no such file")
-        || text.contains("Unable to open")
-        || text.contains("unable to open")
-        || text.contains("SQLITE_CANTOPEN")
-    {
-        return format!("{prefix}。保存先が存在するか確認してください。");
-    }
-    if text.contains("readonly")
-        || text.contains("SQLITE_READONLY")
-        || text.contains("Permission denied")
-    {
-        return format!("{prefix}。保存先に書き込み権限があるか確認してください。");
-    }
-    prefix.to_string()
+fn map_sqlite_io_error(prefix: &str, error: rusqlite::Error) -> String {
+    format_operation_io_error(prefix, classify_rusqlite_error(&error, None))
+}
+
+fn map_sqlite_io_error_for_dest(prefix: &str, error: rusqlite::Error, dest: &Path) -> String {
+    format_operation_io_error(prefix, classify_rusqlite_error(&error, Some(dest)))
 }
 
 fn map_std_io_error(prefix: &str, error: std::io::Error) -> String {
-    classify_sqlite_io_message(prefix, &error.to_string())
+    format_operation_io_error(prefix, classify_std_io_error(&error))
 }
 // 生きているDBへ問い合わせる際、直近の書き込みトランザクションと競合しても
 // 待ってから読み取れるようにする(即座にSQLITE_BUSYで失敗させない)。
@@ -152,7 +153,9 @@ fn vacuum_into(source: &Path, dest: &Path) -> Result<(), String> {
         .to_str()
         .ok_or_else(|| "バックアップ先のパスが不正です".to_string())?;
     conn.execute("VACUUM INTO ?1", [dest_str])
-        .map_err(|error| map_sqlite_io_error("バックアップの作成に失敗しました", error))?;
+        .map_err(|error| {
+            map_sqlite_io_error_for_dest("バックアップの作成に失敗しました", error, dest)
+        })?;
     Ok(())
 }
 
@@ -188,7 +191,7 @@ fn write_manifest(backup_path: &Path, manifest: &BackupManifest) -> Result<(), S
     let json = serde_json::to_string_pretty(manifest)
         .map_err(|error| format!("メタデータの作成に失敗しました: {error}"))?;
     fs::write(manifest_path(backup_path), json)
-        .map_err(|error| format!("メタデータの保存に失敗しました: {error}"))
+        .map_err(|error| map_std_io_error("メタデータの保存に失敗しました", error))
 }
 
 fn read_manifest(backup_path: &Path) -> Option<BackupManifest> {
@@ -223,14 +226,16 @@ fn backup_info_from_manifest(file_name: String, size_bytes: u64, path: &Path) ->
     }
 }
 
-fn verify_backup_integrity(path: &Path) -> Result<(), String> {
+fn verify_backup_integrity(path: &Path, size_policy: BackupSizePolicy) -> Result<(), String> {
     if !path.exists() {
         return Err("バックアップファイルが見つかりません".to_string());
     }
     let size = fs::metadata(path)
-        .map(|metadata| metadata.len())
-        .unwrap_or(0);
-    reject_backup_file_size(size)?;
+        .map_err(|error| {
+            map_std_io_error("バックアップファイルの情報を取得できませんでした", error)
+        })?
+        .len();
+    apply_backup_size_policy(size, size_policy)?;
     let conn =
         rusqlite::Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
             .map_err(|_| {
@@ -256,7 +261,7 @@ fn verify_backup_integrity(path: &Path) -> Result<(), String> {
     }
 
     if let Some(version) = read_schema_version(path) {
-        if version > CURRENT_SCHEMA_VERSION {
+        if version > current_schema_version() {
             return Err(
                 "このバックアップは新しいバージョンのアプリで作成されています。アプリを更新してから復元してください"
                     .to_string(),
@@ -265,6 +270,14 @@ fn verify_backup_integrity(path: &Path) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+fn verify_internal_backup(path: &Path) -> Result<(), String> {
+    verify_backup_integrity(path, BackupSizePolicy::Internal)
+}
+
+fn verify_imported_backup(path: &Path) -> Result<(), String> {
+    verify_backup_integrity(path, BackupSizePolicy::Imported)
 }
 
 fn reject_unsafe_file_name(file_name: &str) -> Result<(), String> {
@@ -290,7 +303,7 @@ pub fn backup_database(app: AppHandle, label: String) -> Result<BackupInfo, Stri
 
     vacuum_into(&db, &dest)?;
 
-    if let Err(error) = verify_backup_integrity(&dest) {
+    if let Err(error) = verify_internal_backup(&dest) {
         remove_if_exists(&dest);
         return Err(format!(
             "作成したバックアップの整合性確認に失敗しました: {error}"
@@ -350,7 +363,7 @@ pub fn restore_database(
     let dir = backups_dir(&app)?;
     reject_unsafe_file_name(&backup_file_name)?;
     let backup_path = dir.join(&backup_file_name);
-    verify_backup_integrity(&backup_path)?;
+    verify_internal_backup(&backup_path)?;
 
     let db = db_path(&app)?;
     let pre_restore_label = sanitize_label(&pre_restore_label)?;
@@ -360,7 +373,7 @@ pub fn restore_database(
         // 復元前退避も、生きているDBを読み取るためvacuum_intoで一貫したスナップショットを取る。
         // ここで失敗、または退避データの整合性検証に失敗した場合は復元自体を開始しない。
         vacuum_into(&db, &pre_restore_path)?;
-        if let Err(error) = verify_backup_integrity(&pre_restore_path) {
+        if let Err(error) = verify_internal_backup(&pre_restore_path) {
             remove_if_exists(&pre_restore_path);
             return Err(format!(
                 "復元前の退避データの検証に失敗したため、復元を中止しました: {error}"
@@ -401,7 +414,7 @@ pub fn export_backup_to(
     reject_unsafe_file_name(&backup_file_name)?;
     let dir = backups_dir(&app)?;
     let source = dir.join(&backup_file_name);
-    verify_backup_integrity(&source)?;
+    verify_internal_backup(&source)?;
 
     let destination = PathBuf::from(&destination_path);
     if destination.exists() {
@@ -428,7 +441,7 @@ pub fn import_backup_from(
     label: String,
 ) -> Result<BackupInfo, String> {
     let source = PathBuf::from(&source_path);
-    verify_backup_integrity(&source)?;
+    verify_imported_backup(&source)?;
 
     let dir = backups_dir(&app)?;
     let sanitized_label = sanitize_label(&label)?;
@@ -455,6 +468,7 @@ pub fn import_backup_from(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::io_errors::{format_operation_io_error, ClassifiedIoKind};
     use std::io::Write;
 
     fn temp_dir(label: &str) -> PathBuf {
@@ -472,13 +486,26 @@ mod tests {
         if with_app_settings_table {
             conn.execute("CREATE TABLE app_settings (id INTEGER PRIMARY KEY)", [])
                 .unwrap();
-            conn.execute(
-                "CREATE TABLE _sqlx_migrations (version INTEGER PRIMARY KEY)",
-                [],
+            conn.execute_batch(
+                r#"
+                CREATE TABLE _sqlx_migrations (
+                    version BIGINT PRIMARY KEY,
+                    description TEXT NOT NULL,
+                    installed_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    success BOOLEAN NOT NULL,
+                    checksum BLOB NOT NULL,
+                    execution_time BIGINT NOT NULL
+                );
+                "#,
             )
             .unwrap();
-            conn.execute("INSERT INTO _sqlx_migrations (version) VALUES (4)", [])
-                .unwrap();
+            let checksum = [0u8; 48];
+            conn.execute(
+                "INSERT INTO _sqlx_migrations (version, description, success, checksum, execution_time)
+                 VALUES (?1, 'test', 1, ?2, 0)",
+                rusqlite::params![current_schema_version(), checksum.as_slice()],
+            )
+            .unwrap();
         } else {
             conn.execute("CREATE TABLE unrelated (id INTEGER PRIMARY KEY)", [])
                 .unwrap();
@@ -486,11 +513,11 @@ mod tests {
     }
 
     #[test]
-    fn verify_backup_integrity_accepts_a_valid_app_database() {
+    fn verify_internal_backup_accepts_a_valid_app_database() {
         let dir = temp_dir("ok");
         let path = dir.join("backup.db");
         write_minimal_sqlite_file(&path, true);
-        assert!(verify_backup_integrity(&path).is_ok());
+        assert!(verify_internal_backup(&path).is_ok());
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -499,7 +526,7 @@ mod tests {
         let dir = temp_dir("wrong-schema");
         let path = dir.join("backup.db");
         write_minimal_sqlite_file(&path, false);
-        assert!(verify_backup_integrity(&path).is_err());
+        assert!(verify_internal_backup(&path).is_err());
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -509,7 +536,8 @@ mod tests {
         let path = dir.join("backup.db");
         let mut file = fs::File::create(&path).unwrap();
         file.write_all(b"not a sqlite file").unwrap();
-        assert!(verify_backup_integrity(&path).is_err());
+        let error = verify_internal_backup(&path).unwrap_err();
+        assert!(!error.contains("大きすぎます"));
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -528,8 +556,8 @@ mod tests {
 
         vacuum_into(&source, &dest).unwrap();
 
-        assert!(verify_backup_integrity(&dest).is_ok());
-        assert_eq!(read_schema_version(&dest), Some(4));
+        assert!(verify_internal_backup(&dest).is_ok());
+        assert_eq!(read_schema_version(&dest), Some(current_schema_version()));
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -553,7 +581,7 @@ mod tests {
         let manifest = BackupManifest {
             backup_format_version: BACKUP_FORMAT_VERSION,
             app_version: "0.1.0".to_string(),
-            schema_version: Some(4),
+            schema_version: Some(current_schema_version()),
             created_at_unix: 1_700_000_000,
             os: "linux".to_string(),
         };
@@ -562,7 +590,7 @@ mod tests {
         let loaded = read_manifest(&backup_path).unwrap();
 
         assert_eq!(loaded.app_version, "0.1.0");
-        assert_eq!(loaded.schema_version, Some(4));
+        assert_eq!(loaded.schema_version, Some(current_schema_version()));
         assert_eq!(loaded.created_at_unix, 1_700_000_000);
         assert_eq!(loaded.os, "linux");
         let _ = fs::remove_dir_all(&dir);
@@ -587,19 +615,37 @@ mod tests {
     }
 
     #[test]
-    fn reject_backup_file_size_rejects_empty_and_huge_files() {
-        assert!(reject_backup_file_size(0).is_err());
-        assert!(reject_backup_file_size(MAX_BACKUP_BYTES).is_ok());
-        assert!(reject_backup_file_size(MAX_BACKUP_BYTES + 1).is_err());
+    fn size_policy_rejects_empty_for_both_and_huge_only_for_imported() {
+        assert!(reject_empty_backup(0).is_err());
+        assert!(reject_empty_backup(1).is_ok());
+        assert!(reject_untrusted_backup_file_size(0).is_err());
+        assert!(reject_untrusted_backup_file_size(MAX_UNTRUSTED_BACKUP_BYTES).is_ok());
+        assert!(reject_untrusted_backup_file_size(MAX_UNTRUSTED_BACKUP_BYTES + 1).is_err());
+        assert!(apply_backup_size_policy(
+            MAX_UNTRUSTED_BACKUP_BYTES + 1,
+            BackupSizePolicy::Internal
+        )
+        .is_ok());
+        assert!(apply_backup_size_policy(
+            MAX_UNTRUSTED_BACKUP_BYTES + 1,
+            BackupSizePolicy::Imported
+        )
+        .is_err());
+        let imported_error =
+            apply_backup_size_policy(MAX_UNTRUSTED_BACKUP_BYTES + 1, BackupSizePolicy::Imported)
+                .unwrap_err();
+        assert!(imported_error.contains("大きすぎます"));
     }
 
     #[test]
-    fn verify_backup_integrity_rejects_an_empty_file() {
+    fn verify_backup_integrity_rejects_an_empty_file_for_both_policies() {
         let dir = temp_dir("empty");
         let path = dir.join("backup.db");
         fs::write(&path, b"").unwrap();
-        let error = verify_backup_integrity(&path).unwrap_err();
-        assert!(error.contains("空です"));
+        let internal = verify_internal_backup(&path).unwrap_err();
+        let imported = verify_imported_backup(&path).unwrap_err();
+        assert!(internal.contains("空です"));
+        assert!(imported.contains("空です"));
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -609,11 +655,41 @@ mod tests {
         let path = dir.join("backup.db");
         write_minimal_sqlite_file(&path, true);
         let conn = rusqlite::Connection::open(&path).unwrap();
-        conn.execute("INSERT INTO _sqlx_migrations (version) VALUES (99)", [])
-            .unwrap();
+        let checksum = [0u8; 48];
+        conn.execute(
+            "INSERT INTO _sqlx_migrations (version, description, success, checksum, execution_time)
+             VALUES (99, 'future', 1, ?1, 0)",
+            rusqlite::params![checksum.as_slice()],
+        )
+        .unwrap();
         drop(conn);
-        let error = verify_backup_integrity(&path).unwrap_err();
+        let error = verify_internal_backup(&path).unwrap_err();
         assert!(error.contains("新しいバージョン"));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn imported_huge_backup_is_rejected_before_sqlite_open_internal_is_not() {
+        let dir = temp_dir("huge-sparse");
+        let path = dir.join("backup.db");
+        write_minimal_sqlite_file(&path, true);
+        let file = fs::OpenOptions::new().write(true).open(&path).unwrap();
+        file.set_len(MAX_UNTRUSTED_BACKUP_BYTES + 1).unwrap();
+        drop(file);
+
+        let imported = verify_imported_backup(&path).unwrap_err();
+        assert!(imported.contains("大きすぎます"));
+
+        match verify_internal_backup(&path) {
+            Ok(()) => {}
+            Err(error) => {
+                assert!(
+                    !error.contains("大きすぎます"),
+                    "internal backup must not fail solely because of the untrusted size limit: {error}"
+                );
+            }
+        }
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -623,7 +699,9 @@ mod tests {
         let source = dir.join("live.db");
         write_minimal_sqlite_file(&source, true);
         let dest = dir.join("does-not-exist").join("copy.db");
-        assert!(vacuum_into(&source, &dest).is_err());
+        let error = vacuum_into(&source, &dest).unwrap_err();
+        assert!(error.contains("対象ファイルが見つかりませんでした"));
+        assert!(!error.contains("SQLITE_"));
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -644,27 +722,28 @@ mod tests {
         let mut restore = fs::metadata(&dest_dir).unwrap().permissions();
         restore.set_mode(0o755);
         fs::set_permissions(&dest_dir, restore).unwrap();
-        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.contains("アクセス権限"));
+        assert!(!error.contains("対象ファイルが見つかりませんでした"));
+        assert!(!error.contains("SQLITE_"));
         let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
-    fn classify_sqlite_io_message_does_not_expose_engine_codes() {
-        let message = classify_sqlite_io_message(
-            "バックアップの作成に失敗しました",
-            "database is locked (SQLITE_BUSY)",
-        );
+    fn sqlite_busy_message_does_not_expose_engine_codes() {
+        let message =
+            format_operation_io_error("バックアップの作成に失敗しました", ClassifiedIoKind::Busy);
         assert!(!message.contains("SQLITE_BUSY"));
         assert!(message.contains("もう一度お試しください"));
     }
 
     #[test]
-    fn classify_sqlite_io_message_maps_disk_full_without_engine_codes() {
-        let message = classify_sqlite_io_message(
+    fn sqlite_full_message_does_not_expose_engine_codes() {
+        let message = format_operation_io_error(
             "バックアップの作成に失敗しました",
-            "database or disk is full (SQLITE_FULL)",
+            ClassifiedIoKind::StorageFull,
         );
         assert!(!message.contains("SQLITE_FULL"));
-        assert!(message.contains("空き容量"));
+        assert!(message.contains("空き容量が不足"));
     }
 }

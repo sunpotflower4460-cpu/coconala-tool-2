@@ -24,26 +24,26 @@ pnpm tauri dev
 
 ## 主要スクリプト
 
-| コマンド                    | 内容                                                                       |
-| --------------------------- | -------------------------------------------------------------------------- |
-| `pnpm dev`                  | Viteの開発サーバーのみ起動                                                 |
-| `pnpm tauri dev`            | デスクトップアプリとして起動                                               |
-| `pnpm lint`                 | ESLint                                                                     |
-| `pnpm format:check`         | Prettierチェック                                                           |
-| `pnpm typecheck`            | TypeScript型チェック                                                       |
-| `pnpm test`                 | フロントエンドのunit/integration test (Vitest)                             |
-| `pnpm test:e2e`             | E2Eテスト (Playwright、ブラウザのみ)                                       |
-| `pnpm test:e2e-tauri`       | 実Tauriアプリに対するE2Eテスト(Linux専用、`tests/e2e-tauri/README.md`参照) |
-| `pnpm check:migrations`     | migrationファイルの適用検証                                                |
-| `pnpm check:release`        | リリース前チェック(basic。プレースホルダーは警告)                          |
-| `pnpm check:release:rc`     | RCタグ用チェック(秘密情報・OS表記・更新未実装の明記を必須)                 |
-| `pnpm check:release:strict` | 正式タグ用の厳格判定(プレースホルダー・DRAFT・窓口未確定でも失敗)          |
-| `pnpm seed:stress`          | 開発専用の大量データ生成(既定は full。本番アプリからは実行不可)            |
-| `pnpm seed:stress:ci`       | 同上の小さいプロファイル(CI/自動テスト向け)                                |
-| `pnpm rust:fmt:check`       | Rust fmtチェック                                                           |
-| `pnpm rust:clippy`          | Rust clippy (警告をエラー扱い)                                             |
-| `pnpm rust:test`            | Rustのテスト                                                               |
-| `pnpm tauri build`          | 本番ビルド                                                                 |
+| コマンド                    | 内容                                                                             |
+| --------------------------- | -------------------------------------------------------------------------------- |
+| `pnpm dev`                  | Viteの開発サーバーのみ起動                                                       |
+| `pnpm tauri dev`            | デスクトップアプリとして起動                                                     |
+| `pnpm lint`                 | ESLint                                                                           |
+| `pnpm format:check`         | Prettierチェック                                                                 |
+| `pnpm typecheck`            | TypeScript型チェック                                                             |
+| `pnpm test`                 | フロントエンドのunit/integration test (Vitest)                                   |
+| `pnpm test:e2e`             | E2Eテスト (Playwright、ブラウザのみ)                                             |
+| `pnpm test:e2e-tauri`       | 実Tauriアプリに対するE2Eテスト(Linux専用、`tests/e2e-tauri/README.md`参照)       |
+| `pnpm check:migrations`     | migration適用・番号・lib.rs登録・schema version同期の検証                        |
+| `pnpm seed:stress`          | 開発専用の大量データ生成(既定は full。本番アプリからは実行不可。Windowsでも動作) |
+| `pnpm seed:stress:ci`       | 同上の小さいプロファイル(CI/自動テスト向け)                                      |
+| `pnpm check:release`        | リリース前チェック(basic。プレースホルダーは警告)                                |
+| `pnpm check:release:rc`     | RCタグ用チェック(秘密情報・OS表記・更新未実装の明記を必須)                       |
+| `pnpm check:release:strict` | 正式タグ用の厳格判定(プレースホルダー・DRAFT・窓口未確定でも失敗)                |
+| `pnpm rust:fmt:check`       | Rust fmtチェック                                                                 |
+| `pnpm rust:clippy`          | Rust clippy (警告をエラー扱い)                                                   |
+| `pnpm rust:test`            | Rustのテスト                                                                     |
+| `pnpm tauri build`          | 本番ビルド                                                                       |
 
 ## ドキュメント
 

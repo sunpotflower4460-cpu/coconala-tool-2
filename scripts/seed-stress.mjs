@@ -2,14 +2,22 @@
 // 開発専用の大量データ生成。本番アプリのコマンドや画面からは呼ばない。
 //
 //   pnpm seed:stress
-//   node scripts/seed-stress.mjs --profile=ci --out=./tmp/stress-ci.db
+//   pnpm seed:stress:ci
+//   node scripts/run-seed-stress.mjs --profile=ci --out=./tmp/stress-ci.db
 //
 // 既定の出力先はリポジトリ内の tmp/stress-test.db。購入者の本番DBへは書かない。
+// 安全ガード(本番パス拒否・既存ファイル上書き禁止・明示フラグ)は維持する。
+// package.json から呼ぶ場合は run-seed-stress.mjs がフラグを付ける。
 
-import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
+import {
+  applySqlxCompatibleMigrations,
+  assertSqlxMigratorWouldAccept,
+  loadSqlxMigrations,
+} from "./sqlx-migrations.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -21,7 +29,7 @@ export const STRESS_PROFILES = {
 export function parseSeedArgs(argv) {
   let profileName = "full";
   let out = path.join(rootDir, "tmp", "stress-test.db");
-  let allowAppConfig = false;
+  let requestedAllowAppConfig = false;
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg.startsWith("--profile=")) {
@@ -35,45 +43,33 @@ export function parseSeedArgs(argv) {
       out = path.resolve(argv[index + 1] ?? out);
       index += 1;
     } else if (arg === "--allow-app-config") {
-      allowAppConfig = true;
+      requestedAllowAppConfig = true;
     }
   }
-  return { profileName, out, allowAppConfig };
+  return { profileName, out, requestedAllowAppConfig };
 }
 
 export function isAppConfigPath(targetPath) {
   const normalized = targetPath.replaceAll("\\", "/");
-  return normalized.includes("/com.mitsumoridesk.desktop/");
+  return /(^|\/)com\.mitsumoridesk\.desktop(\/|$)/.test(normalized);
 }
 
-export function assertSafeOutputPath(targetPath, { allowAppConfig = false } = {}) {
-  if (isAppConfigPath(targetPath) && !allowAppConfig) {
+export function assertSafeOutputPath(targetPath) {
+  if (isAppConfigPath(targetPath)) {
     throw new Error(
       "本番アプリのデータフォルダへは書き込みません。開発用の一時ファイルを --out で指定してください。",
     );
   }
 }
 
-function applyMigrations(db) {
-  const dir = path.join(rootDir, "src-tauri/migrations");
-  const files = readdirSync(dir)
-    .filter((file) => file.endsWith(".sql"))
-    .sort();
-  for (const file of files) {
-    db.exec(readFileSync(path.join(dir, file), "utf-8"));
-  }
+export function runRealMigrations(db) {
+  const migrations = loadSqlxMigrations();
+  applySqlxCompatibleMigrations(db, migrations);
+  assertSqlxMigratorWouldAccept(db, migrations);
+  return migrations;
 }
 
-export function seedStressDatabase(dbPath, counts, { now = "2026-08-31T00:00:00.000Z" } = {}) {
-  mkdirSync(path.dirname(dbPath), { recursive: true });
-  const db = new Database(dbPath);
-  db.pragma("foreign_keys = ON");
-  applyMigrations(db);
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS _sqlx_migrations (version INTEGER PRIMARY KEY);
-    INSERT OR IGNORE INTO _sqlx_migrations (version) VALUES (1), (2), (3), (4);
-  `);
-
+export function insertStressFixtures(db, counts, { now = "2026-08-31T00:00:00.000Z" } = {}) {
   db.exec(`
     INSERT OR IGNORE INTO companies (
       id, display_name, estimate_valid_days, payment_due_days, created_at, updated_at
@@ -101,7 +97,6 @@ export function seedStressDatabase(dbPath, counts, { now = "2026-08-31T00:00:00.
     ) VALUES (?, 0, '負荷試験明細', 1, 1000, 'taxable_10', 0, 1000)
   `);
 
-  const started = Date.now();
   const tx = db.transaction(() => {
     for (let index = 0; index < counts.clients; index += 1) {
       insertClient.run(`負荷試験顧客${index}`, `担当${index}`, now, now);
@@ -116,9 +111,23 @@ export function seedStressDatabase(dbPath, counts, { now = "2026-08-31T00:00:00.
     }
   });
   tx();
+}
+
+export function createStressDatabase(dbPath, counts, options = {}) {
+  mkdirSync(path.dirname(dbPath), { recursive: true });
+  const db = new Database(dbPath);
+  db.pragma("foreign_keys = ON");
+  const migrations = runRealMigrations(db);
+  const started = Date.now();
+  insertStressFixtures(db, counts, options);
   const elapsedMs = Date.now() - started;
+  const schemaVersion = db.prepare("SELECT MAX(version) AS n FROM _sqlx_migrations").get().n;
   db.close();
-  return { dbPath, counts, elapsedMs };
+  return { dbPath, counts, elapsedMs, schemaVersion, migrationCount: migrations.length };
+}
+
+export function seedStressDatabase(dbPath, counts, options = {}) {
+  return createStressDatabase(dbPath, counts, options);
 }
 
 export function runSeedStressMain(argv, env) {
@@ -126,17 +135,24 @@ export function runSeedStressMain(argv, env) {
     return {
       ok: false,
       message:
-        "開発専用コマンドです。本番アプリからは実行できません。MITSUMORI_ALLOW_STRESS_SEED=1 を付けて `pnpm seed:stress` を使ってください。",
+        "開発専用コマンドです。本番アプリからは実行できません。`pnpm seed:stress` を使ってください。",
     };
   }
 
   const args = parseSeedArgs(argv);
+  if (args.requestedAllowAppConfig) {
+    return {
+      ok: false,
+      message:
+        "--allow-app-config は削除しました。本番データパスへは書き込めません。開発用の一時ファイルを --out で指定し、必要な場合だけ手動でコピーしてください。",
+    };
+  }
   const counts = STRESS_PROFILES[args.profileName];
   if (!counts) {
     return { ok: false, message: `不明なプロファイルです: ${args.profileName} (ci | full)` };
   }
   try {
-    assertSafeOutputPath(args.out, { allowAppConfig: args.allowAppConfig });
+    assertSafeOutputPath(args.out);
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : String(error) };
   }
@@ -145,7 +161,7 @@ export function runSeedStressMain(argv, env) {
     return { ok: false, message: `出力先が既に存在します: ${args.out}` };
   }
 
-  const result = seedStressDatabase(args.out, counts);
+  const result = createStressDatabase(args.out, counts);
   return { ok: true, result, profileName: args.profileName };
 }
 

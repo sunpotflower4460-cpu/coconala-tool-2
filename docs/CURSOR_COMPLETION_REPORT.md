@@ -2,10 +2,12 @@
 
 対象: `sunpotflower4460-cpu/coconala-tool-2`
 コードバージョン: **0.1.0**(RC / 1.0.0 へは上げていない)
-記録日: 2026-08-31
+記録日: 2026-09-01
 この報告は人間確認を完了扱いにしない。
 
-スタックしたPR(いずれも draft。base は直前ブランチ):
+最新: 販売前ハードニング [`#15`](https://github.com/sunpotflower4460-cpu/coconala-tool-2/pull/15) (`cursor/pre-sale-hardening-33c8`、base は `main`)
+
+以前の作業(いずれも merge 済み):
 
 | 作業                         | ブランチ                         | PR                                                              |
 | ---------------------------- | -------------------------------- | --------------------------------------------------------------- |
@@ -24,12 +26,13 @@
 ## 完了(Cursorで実施済み)
 
 - 正式タグ用 `check:release --strict` / RC用 `--rc`、release workflow のゲート、`RELEASE_EVIDENCE.md`、販売OS方針の文書揃え
-- Tauri E2Eの帳票・バックアップ・CSV(Linux。この環境では WebKit 不足のため E2E 本体は未実行)
+- Tauri E2Eの帳票・バックアップ・CSV(Linuxで実行済み。macOS/Windows実機は未実施)
 - `pnpm seed:stress`(本番パス拒否)、ci プロファイルでの一覧/検索/見積、バックアップ障害系とエンジンコードの日本語化
 - PDF目視用 fixture A〜M とチェックリスト(目視そのものは未実施)
 - AI 401/403/429/500/503/timeout/network/空応答/JSON破損/巨大応答/schema不一致、キー混入検査、AI任意のUI文言
 - ヘルプの自己解決項目、診断情報コピー、開発用エラーの非表示
 - ココナラ出品文下書き、人間専用チェックリスト
+- 販売前ハードニング: SQLx互換stress DB、schema version同期、内部backupの512MiB誤拒否解消、I/O分類、stress commandのクロスプラットフォーム化
 
 対象外とした機能追加(指示どおり未着手): 自動更新本実装、ライセンスサーバー、会計連携、新AIモデル、複数帳票デザイン、複数屋号、ダークモード、新しい分析。
 
@@ -40,18 +43,22 @@
 - `pnpm lint`
 - `pnpm format:check`
 - `pnpm typecheck`
-- `pnpm check:migrations`
+- `pnpm check:migrations`(番号・lib.rs・schema version・SQLx互換テーブル)
 - `pnpm check:release`(basic。strict はプレースホルダー残のため失敗するのが正しい)
-- `pnpm test`(251件)
+- `pnpm test`(261件)
 - `cargo fmt --manifest-path src-tauri/Cargo.toml --check`
 - `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`
-- `cargo test --manifest-path src-tauri/Cargo.toml`
-
-未実行(この環境の制約または時間):
-
+- `cargo test --manifest-path src-tauri/Cargo.toml`(32件)
+- `pnpm build`
 - `pnpm tauri build --no-bundle`
-- `pnpm test:e2e-tauri`(Linux + WebKit。CIの `e2e-tauri` ジョブに委ねる)
+- `pnpm test:e2e-tauri`(5件。バックアップ復元を含む)
+- `pnpm seed:stress:ci`(顧客100・商品200・帳票50、`_sqlx_migrations` checksum 48bytes)
+- `pnpm seed:stress`(full: 顧客1000・商品5000・帳票10000。DB生成成功。実アプリでの操作は人間確認)
+
+未実行:
+
 - 実機での `pnpm tauri build` 署名付き成果物
+- stress DBを実アプリの本番データパスとして開く確認(コマンドからは本番パスへ書けない)
 
 ---
 
@@ -61,7 +68,7 @@
 - 日本語PDFの印刷エンジン上の見た目
 - バックアップ復元10回、ディスク満杯、外付け切断
 - 実Anthropic API
-- 大量データ full プロファイル(1000/5000/10000)の実アプリ操作
+- 大量データ full プロファイル(1000/5000/10000)の実アプリ操作(DB生成自体は自動実行済み)
 - Gatekeeper / SmartScreen
 - 署名・公証
 
@@ -100,7 +107,7 @@ P0として残っているもの(コードでは埋められない):
 
 ## 推奨次ステップ(上から実施)
 
-1. このPR列をレビューし、Critical / Major がなければ `main` へ順に入れる
+1. `#15` をレビューし、Critical / Major がなければ `main` へ入れる
 2. CI(特に `e2e-tauri` と macOS/Windows build ジョブ)の結果を `RELEASE_EVIDENCE.md` の自動欄へ記録する
 3. 権利者名・窓口・規約下書きの中身を人間が埋める(strict 通過の前提)
 4. 実Macで署名・公証付きビルドを1本作り、インストール〜PDF A〜M〜バックアップ10回を実施する

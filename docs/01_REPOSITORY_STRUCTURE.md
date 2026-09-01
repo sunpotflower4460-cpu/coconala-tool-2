@@ -422,9 +422,11 @@ mitsumori-desk-backup-20260716-153000.db.manifest.json
 - `os`
 
 バックアップは外部フォルダへの書き出し(`export_backup_to`)・外部ファイルからの
-取り込み(`import_backup_from`)にも対応する。取り込み時は`PRAGMA integrity_check`と
+取り込み(`import_backup_from`)にも対応する。取り込み時は、SQLiteを開く前にファイルサイズを
+確認し(未信頼入力の資源消費防止)、続けて`PRAGMA integrity_check`と
 このアプリのテーブル構造(`app_settings`の存在)を検証し、他アプリのSQLiteファイルや
-破損ファイルは取り込まない。
+破損ファイルは取り込まない。アプリ自身が作成したバックアップへは、サイズ上限を
+製品制限として適用しない。
 
 復元前に現在データを自動退避(こちらもVACUUM INTOで一貫したスナップショットを取り、
 整合性検証まで行う)し、退避または検証に失敗した場合は復元自体を開始しない。

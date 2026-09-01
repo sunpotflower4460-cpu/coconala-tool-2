@@ -1,11 +1,12 @@
 mod commands;
+mod io_errors;
 
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 // sqlxはforeign_keysプラグマを既定でONにするため、接続文字列での指定は不要。
 const DB_URL: &str = "sqlite:mitsumori-desk.db?mode=rwc";
 
-fn migrations() -> Vec<Migration> {
+pub(crate) fn migrations() -> Vec<Migration> {
     vec![
         Migration {
             version: 1,
@@ -32,6 +33,14 @@ fn migrations() -> Vec<Migration> {
             kind: MigrationKind::Up,
         },
     ]
+}
+
+pub(crate) fn current_schema_version() -> i64 {
+    migrations()
+        .into_iter()
+        .map(|migration| migration.version)
+        .max()
+        .unwrap_or(0)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -72,6 +81,15 @@ mod tests {
         for (index, migration) in list.iter().enumerate() {
             assert_eq!(migration.version, (index + 1) as i64);
         }
+    }
+
+    #[test]
+    fn current_schema_version_matches_latest_registered_migration() {
+        let list = migrations();
+        let latest = list.last().expect("at least one migration").version;
+        assert_eq!(current_schema_version(), latest);
+        assert_eq!(latest, list.len() as i64);
+        assert!(current_schema_version() > 0);
     }
 
     #[test]

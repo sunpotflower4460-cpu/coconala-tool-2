@@ -54,7 +54,7 @@
 以下がすべて揃うまで正式タグは作成しない。
 
 - `pnpm check:release -- --strict` が通過する(プレースホルダーなし、publisher/copyright設定済み、サポート窓口確定、バージョン3箇所一致、CHANGELOGに対象バージョンの見出し、秘密情報なし、自動更新未実装の明記、販売OS表記の一致)
-- CIがgreen(lint / format / typecheck / migration check / unit / integration / Rust fmt・clippy・test / build)
+- CIがgreen(lint / format / typecheck / migration check(番号・schema version同期・SQLx互換を含む) / unit / integration / Rust fmt・clippy・test / build)
 - macOS署名・公証用のGitHub Secretsが設定済み(`docs/MANUAL_STEPS.md` Phase5)
 - 利用規約・免責事項が専門家レビュー済みで`_DRAFT`が外れている
 - サポート窓口が確定している
