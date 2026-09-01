@@ -1,5 +1,5 @@
 import type { DatabasePort, TransactionStatement } from "@/application/ports/database";
-import { documentEventStatement } from "@/application/commands/document-events.helper";
+import { documentEventStatementIfPreviousWriteAffected } from "@/application/commands/document-events.helper";
 import { toAppError, type AppError } from "@/application/errors";
 import { getDocument, type DocumentDetail } from "@/application/queries/get-document.query";
 import { canTransitionDocumentStatus, type DocumentStatus } from "@/domain/documents/status";
@@ -29,9 +29,21 @@ export async function updateDocumentStatus(
         sql: `UPDATE documents SET status = ?, updated_at = ? WHERE id = ? AND status = ?`,
         params: [toStatus, now, id, document.status],
       },
-      documentEventStatement(id, "status_change", document.status, toStatus, note),
+      documentEventStatementIfPreviousWriteAffected(
+        id,
+        "status_change",
+        document.status,
+        toStatus,
+        note,
+      ),
     ];
-    await db.executeTransaction(statements);
+    const results = await db.executeTransaction(statements);
+    if ((results[0]?.rowsAffected ?? 0) !== 1) {
+      return err({
+        code: "invalid_transition",
+        message: "その状態には変更できません",
+      });
+    }
 
     const updated = await getDocument(db, id);
     if (!updated) {

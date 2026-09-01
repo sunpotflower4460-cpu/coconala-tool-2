@@ -109,9 +109,12 @@ export async function saveEstimateDraft(
           input.id,
         ],
       });
+      // 発行と保存が競合した場合、発行済み明細を消さない(下書きのときだけ差し替える)。
       statements.push({
-        sql: `DELETE FROM document_lines WHERE document_id = ?`,
-        params: [input.id],
+        sql: `DELETE FROM document_lines
+              WHERE document_id = ?
+                AND EXISTS (SELECT 1 FROM documents WHERE id = ? AND status = 'draft')`,
+        params: [input.id, input.id],
       });
       documentIdParam = input.id;
     }
@@ -121,7 +124,9 @@ export async function saveEstimateDraft(
         sql: `INSERT INTO document_lines (
            document_id, sort_order, catalog_item_id, name, description, unit, quantity,
            unit_price_yen, tax_category, line_discount_yen, amount_yen
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         )
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+         WHERE EXISTS (SELECT 1 FROM documents WHERE id = ? AND status = 'draft')`,
         params: [
           documentIdParam,
           index,
@@ -134,11 +139,18 @@ export async function saveEstimateDraft(
           line.taxCategory,
           line.lineDiscountYen,
           totals.lines[index]?.amountYen ?? 0,
+          documentIdParam,
         ],
       });
     }
 
     const results = await db.executeTransaction(statements);
+    if (input.id !== null && (results[0]?.rowsAffected ?? 0) !== 1) {
+      return err({
+        code: "not_editable",
+        message: "この見積は編集できません(発行済みの可能性があります)",
+      });
+    }
     const documentId = input.id === null ? (results[0]?.lastInsertId ?? 0) : input.id;
 
     const saved = await getDocumentDraft(db, documentId);

@@ -12,10 +12,16 @@ export function reconcileCatalogCandidates(
   validCatalogItemIds: ReadonlySet<number>,
 ): CatalogCandidate[] {
   return rawCandidates
-    .filter((candidate) => validCatalogItemIds.has(candidate.catalogItemId))
+    .filter(
+      (candidate) =>
+        Number.isInteger(candidate.catalogItemId) &&
+        validCatalogItemIds.has(candidate.catalogItemId),
+    )
     .map((candidate) => ({
       ...candidate,
-      confidence: Math.min(1, Math.max(0, candidate.confidence)),
+      confidence: Number.isFinite(candidate.confidence)
+        ? Math.min(1, Math.max(0, candidate.confidence))
+        : 0,
     }))
     .sort((a, b) => b.confidence - a.confidence);
 }

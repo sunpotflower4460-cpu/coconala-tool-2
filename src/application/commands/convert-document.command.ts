@@ -1,5 +1,8 @@
 import type { DatabasePort, TransactionStatement } from "@/application/ports/database";
-import { documentEventStatement } from "@/application/commands/document-events.helper";
+import {
+  documentEventStatement,
+  documentEventStatementIfPreviousWriteAffected,
+} from "@/application/commands/document-events.helper";
 import { refPreviousInsertId } from "@/application/ports/database";
 import { toAppError, type AppError } from "@/application/errors";
 import { getDocument, type DocumentDetail } from "@/application/queries/get-document.query";
@@ -104,7 +107,7 @@ export async function convertDocument(
         params: [autoStatus, now, source.id, source.status],
       });
       statements.push(
-        documentEventStatement(
+        documentEventStatementIfPreviousWriteAffected(
           source.id,
           "status_change",
           source.status,
