@@ -1,21 +1,26 @@
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
-use super::backup::{app_config_dir, db_path};
+use super::backup::{app_config_dir, db_path, BackupManifest};
 use crate::current_schema_version;
 use crate::io_errors::{classify_rusqlite_error, classify_std_io_error, format_operation_io_error};
 
 const BACKUPS_DIR_NAME: &str = "backups";
 const SIDECAR_SUFFIXES: [&str; 3] = ["-wal", "-shm", "-journal"];
+const MANIFEST_SUFFIX: &str = ".manifest.json";
 const BUSY_TIMEOUT: Duration = Duration::from_millis(5000);
 
 fn append_suffix(path: &Path, suffix: &str) -> PathBuf {
     let mut os_string = path.as_os_str().to_owned();
     os_string.push(suffix);
     PathBuf::from(os_string)
+}
+
+fn manifest_path(path: &Path) -> PathBuf {
+    append_suffix(path, MANIFEST_SUFFIX)
 }
 
 fn remove_if_exists(path: &Path) {
@@ -161,6 +166,31 @@ fn sanitize_label(label: &str) -> Result<String, String> {
     Ok(sanitized)
 }
 
+fn unix_now() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or(0)
+}
+
+fn write_pre_restore_manifest(app: &AppHandle, backup_path: &Path) -> Result<(), String> {
+    let manifest = BackupManifest {
+        backup_format_version: 1,
+        app_version: app.package_info().version.to_string(),
+        schema_version: read_schema_version(backup_path),
+        created_at_unix: unix_now(),
+        os: std::env::consts::OS.to_string(),
+    };
+    let json = serde_json::to_string_pretty(&manifest)
+        .map_err(|error| format!("メタデータの作成に失敗しました: {error}"))?;
+    fs::write(manifest_path(backup_path), json).map_err(|error| {
+        format_operation_io_error(
+            "メタデータの保存に失敗しました",
+            classify_std_io_error(&error),
+        )
+    })
+}
+
 fn restore_pre_restore_backup(pre_restore_path: &Path, db: &Path) -> Result<(), String> {
     remove_database_artifacts(db);
     copy_with_sidecars(pre_restore_path, db)?;
@@ -235,6 +265,8 @@ pub fn restore_database(
                 "復元前の退避データの検証に失敗したため、復元を中止しました: {error}"
             ));
         }
+        // 旧実装と同様、manifest保存はbest effort。DB本体は検証済みなので失敗しても復元は継続する。
+        let _ = write_pre_restore_manifest(&app, &pre_restore_path);
         Some(pre_restore_path.as_path())
     } else {
         None
@@ -251,8 +283,8 @@ mod tests {
         let dir = std::env::temp_dir().join(format!(
             "mitsumori-safe-restore-{label}-{}-{}",
             std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_nanos()
         ));
