@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getCompany } from "@/application/queries/get-company.query";
 import { getDocument } from "@/application/queries/get-document.query";
+import { getImageAssetDataUrl } from "@/application/queries/get-image-asset.query";
 import { getClient } from "@/application/queries/list-clients.query";
 import {
   DocumentPrintLayout,
@@ -59,6 +60,7 @@ export function DocumentPrintPage() {
           }
           return;
         }
+        const logoDataUrl = await getImageAssetDataUrl(db, company.logoAssetSha256);
         const totals = calculateDocumentTotals(lineInputs, {
           discountYen: document.discountYen,
           pricingType: document.pricingType,
@@ -95,6 +97,7 @@ export function DocumentPrintPage() {
             discountYen: document.discountYen,
             note: document.note,
             isDraftPreview: true,
+            logoDataUrl,
           },
         });
         return;
@@ -108,6 +111,11 @@ export function DocumentPrintPage() {
       }
 
       const snapshot = document.calculationSnapshot;
+      // 発行済みは発行時点のロゴ(スナップショットの参照)を使う。
+      const issuedLogoDataUrl = await getImageAssetDataUrl(
+        db,
+        document.companySnapshot.logoAssetSha256,
+      );
       const lineTotals = calculateDocumentTotals(lineInputs, {
         discountYen: snapshot.discountYen,
         pricingType: snapshot.pricingType,
@@ -143,6 +151,7 @@ export function DocumentPrintPage() {
           discountYen: snapshot.discountYen,
           note: document.note,
           isDraftPreview: false,
+          logoDataUrl: issuedLogoDataUrl,
         },
       });
     }
@@ -187,6 +196,17 @@ export function DocumentPrintPage() {
         >
           印刷する(PDFとして保存もこちらから)
         </button>
+        <details className="print-pdf-guide">
+          <summary>PDFとして保存するには</summary>
+          <ul>
+            <li>Mac: 印刷画面の左下にある「PDF」を押し、「PDFとして保存」を選びます。</li>
+            <li>
+              Windows: 「プリンター」で「Microsoft Print to
+              PDF」を選び、「印刷」を押して保存先を選びます。
+            </li>
+            <li>ファイル名には書類番号が入ります。拡大縮小は「100%」のままにしてください。</li>
+          </ul>
+        </details>
       </div>
       {printError && <ErrorBanner message={printError} code="print_failed" />}
       <DocumentPrintLayout

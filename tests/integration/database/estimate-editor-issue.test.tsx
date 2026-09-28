@@ -127,6 +127,9 @@ describe("見積編集画面の発行", () => {
     renderEditor(db, invoiceId);
     const dueInput = await screen.findByLabelText("お支払期限");
     expect(screen.queryByLabelText("有効期限")).not.toBeInTheDocument();
+    // 変換時に会社設定の支払期限(30日)から初期値が入っている
+    await waitFor(() => expect(dueInput).not.toHaveValue(""));
+    await user.clear(dueInput);
     await user.type(dueInput, "2026-09-30");
     await user.click(screen.getByRole("button", { name: "下書きを保存" }));
 

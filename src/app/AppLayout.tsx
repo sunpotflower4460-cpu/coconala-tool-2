@@ -48,6 +48,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "設定",
     items: [
       { to: "/settings/company", label: "会社情報" },
+      { to: "/settings/documents", label: "帳票の設定" },
       { to: "/settings/ai", label: "AI設定" },
       { to: "/settings/data", label: "データ管理" },
       { to: "/help", label: "ヘルプ" },

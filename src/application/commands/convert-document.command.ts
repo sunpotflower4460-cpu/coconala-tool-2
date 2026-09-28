@@ -1,3 +1,5 @@
+import { getCompany } from "@/application/queries/get-company.query";
+import { addDaysToIsoDate, localTodayIsoDate } from "@/domain/documents/dates";
 import type { DatabasePort, TransactionStatement } from "@/application/ports/database";
 import {
   documentEventStatement,
@@ -53,16 +55,24 @@ export async function convertDocument(
       },
     );
 
+    // 請求書へ変換するときは、会社設定の「支払期限(日数)」から支払期限を下書きへ入れておく。
+    const company = await getCompany(db);
+    const dueDate =
+      targetType === "invoice" && company?.paymentDueDays != null
+        ? addDaysToIsoDate(localTodayIsoDate(), company.paymentDueDays)
+        : null;
+
     const now = new Date().toISOString();
     const statements: TransactionStatement[] = [
       {
         sql: `INSERT INTO documents (
-           document_type, status, client_id, pricing_type, rounding_mode, discount_yen,
+           document_type, status, client_id, due_date, pricing_type, rounding_mode, discount_yen,
            subtotal_yen, tax_yen, total_yen, note, source_document_id, created_at, updated_at
-         ) VALUES (?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         ) VALUES (?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         params: [
           targetType,
           source.clientId,
+          dueDate,
           source.pricingType,
           source.roundingMode,
           source.discountYen,

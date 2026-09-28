@@ -56,6 +56,12 @@ export async function saveCompany(
         now,
       ],
     );
+    // ロゴは指定されたときだけ変更する(省略時は既存のロゴを保つ)。
+    if (input.logoAssetSha256 !== undefined) {
+      await db.execute("UPDATE companies SET logo_asset_sha256 = ? WHERE id = 1", [
+        input.logoAssetSha256,
+      ]);
+    }
     const saved = await getCompany(db);
     if (!saved) {
       return err({ code: "save_failed", message: "会社情報の保存に失敗しました" });

@@ -26,3 +26,33 @@ export function nextDocumentSequence(
 
   return usedSequences.length === 0 ? 1 : Math.max(...usedSequences) + 1;
 }
+
+export const MAX_DOCUMENT_NUMBER_PREFIX_LENGTH = 10;
+
+/**
+ * 書類番号のプレフィックス(4種類)を検査する。問題がなければ空配列。
+ * 英数字とアンダースコアのみ・10文字以内・4種類すべて異なること。
+ */
+export function validateDocumentNumberPrefixes(prefixes: {
+  estimate: string;
+  invoice: string;
+  delivery: string;
+  receipt: string;
+}): string[] {
+  const errors: string[] = [];
+  const labels = { estimate: "見積書", invoice: "請求書", delivery: "納品書", receipt: "領収書" };
+  for (const [key, value] of Object.entries(prefixes) as [keyof typeof labels, string][]) {
+    if (!/^[A-Za-z0-9_]+$/.test(value)) {
+      errors.push(`${labels[key]}の記号は半角英数字(と _ )で入力してください`);
+    } else if (value.length > MAX_DOCUMENT_NUMBER_PREFIX_LENGTH) {
+      errors.push(
+        `${labels[key]}の記号は${MAX_DOCUMENT_NUMBER_PREFIX_LENGTH}文字以内にしてください`,
+      );
+    }
+  }
+  const values = Object.values(prefixes).map((value) => value.toUpperCase());
+  if (new Set(values).size !== values.length) {
+    errors.push("4種類の書類で、それぞれ別の記号にしてください(同じだと番号が区別できません)");
+  }
+  return errors;
+}

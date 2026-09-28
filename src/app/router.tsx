@@ -7,6 +7,7 @@ import { ClientFormPage } from "@/features/clients/ClientFormPage";
 import { ClientListPage } from "@/features/clients/ClientListPage";
 import { AiSettingsPage } from "@/features/ai-settings/AiSettingsPage";
 import { CompanySettingsPage } from "@/features/companies/CompanySettingsPage";
+import { DocumentSettingsPage } from "@/features/settings/DocumentSettingsPage";
 import { DataManagementPage } from "@/features/data-management/DataManagementPage";
 import { CsvImportPage } from "@/features/csv-import/CsvImportPage";
 import { HelpPage } from "@/features/help/HelpPage";
@@ -56,6 +57,7 @@ const router = createBrowserRouter([
       { path: "documents/:id", element: <DocumentDetailPage /> },
       { path: "inquiries", element: <InquiryExtractionPage /> },
       { path: "settings/company", element: <CompanySettingsPage /> },
+      { path: "settings/documents", element: <DocumentSettingsPage /> },
       { path: "settings/ai", element: <AiSettingsPage /> },
       { path: "settings/data", element: <DataManagementPage /> },
       { path: "csv-import", element: <CsvImportPage /> },

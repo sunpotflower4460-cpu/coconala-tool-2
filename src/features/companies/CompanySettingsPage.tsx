@@ -1,10 +1,17 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { saveCompany } from "@/application/commands/save-company.command";
+import { storeImageAsset } from "@/application/commands/store-image-asset.command";
 import { getCompany } from "@/application/queries/get-company.query";
+import { getImageAssetDataUrl } from "@/application/queries/get-image-asset.query";
 import { ErrorBanner } from "@/components/feedback/ErrorBanner";
 import { Field } from "@/components/forms/Field";
 import { SaveStatus, type SaveStatusValue } from "@/components/feedback/SaveStatus";
 import type { CompanyInput } from "@/domain/shared/company";
+import {
+  isValidInvoiceRegistrationNumber,
+  normalizeInvoiceRegistrationNumber,
+} from "@/domain/shared/invoice-registration";
+import { prepareLogoPng } from "@/features/companies/prepare-logo";
 import { useDatabase } from "@/infrastructure/database/use-database";
 
 const EMPTY_FORM = {
@@ -45,7 +52,11 @@ export function CompanySettingsPage({ onSaved }: CompanySettingsPageProps) {
   const db = useDatabase();
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [logoPath, setLogoPath] = useState<string | null>(null);
+  const [logoAssetSha256, setLogoAssetSha256] = useState<string | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoBusy, setLogoBusy] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
+  const [registrationError, setRegistrationError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatusValue>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -53,6 +64,8 @@ export function CompanySettingsPage({ onSaved }: CompanySettingsPageProps) {
     void getCompany(db).then((company) => {
       if (!company) return;
       setLogoPath(company.logoPath);
+      setLogoAssetSha256(company.logoAssetSha256 ?? null);
+      void getImageAssetDataUrl(db, company.logoAssetSha256).then(setLogoPreview);
       setForm({
         displayName: company.displayName,
         representativeName: company.representativeName ?? "",
@@ -81,6 +94,12 @@ export function CompanySettingsPage({ onSaved }: CompanySettingsPageProps) {
       return;
     }
     setNameError(null);
+    const registration = normalizeInvoiceRegistrationNumber(form.invoiceRegistrationNumber);
+    if (registration !== "" && !isValidInvoiceRegistrationNumber(registration)) {
+      setRegistrationError("登録番号は「T」と数字13桁です(例: T1234567890123)");
+      return;
+    }
+    setRegistrationError(null);
     setSaveStatus("saving");
     setErrorMessage(null);
 
@@ -91,13 +110,14 @@ export function CompanySettingsPage({ onSaved }: CompanySettingsPageProps) {
       address: toNullableText(form.address),
       phone: toNullableText(form.phone),
       email: toNullableText(form.email),
-      invoiceRegistrationNumber: toNullableText(form.invoiceRegistrationNumber),
+      invoiceRegistrationNumber: registration === "" ? null : registration,
       bankName: toNullableText(form.bankName),
       bankBranchName: toNullableText(form.bankBranchName),
       bankAccountType: toNullableText(form.bankAccountType),
       bankAccountNumber: toNullableText(form.bankAccountNumber),
       bankAccountHolder: toNullableText(form.bankAccountHolder),
       logoPath,
+      logoAssetSha256,
       estimateValidDays: toNullableInt(form.estimateValidDays),
       paymentDueDays: toNullableInt(form.paymentDueDays),
       defaultNote: toNullableText(form.defaultNote),
@@ -111,6 +131,26 @@ export function CompanySettingsPage({ onSaved }: CompanySettingsPageProps) {
     }
     setSaveStatus("saved");
     onSaved?.();
+  }
+
+  async function handleLogoSelected(file: File | undefined) {
+    if (!file) return;
+    setLogoBusy(true);
+    setErrorMessage(null);
+    try {
+      const bytes = await prepareLogoPng(file);
+      const result = await storeImageAsset(db, bytes);
+      if (!result.ok) {
+        setErrorMessage(result.error.message);
+        return;
+      }
+      setLogoAssetSha256(result.value.sha256);
+      setLogoPreview(await getImageAssetDataUrl(db, result.value.sha256));
+    } catch {
+      setErrorMessage("画像を読み込めませんでした。PNG または JPEG の画像を選んでください。");
+    } finally {
+      setLogoBusy(false);
+    }
   }
 
   return (
@@ -166,9 +206,10 @@ export function CompanySettingsPage({ onSaved }: CompanySettingsPageProps) {
           />
         </Field>
         <Field
-          label="適格請求書発行事業者番号"
+          label="登録番号(適格請求書発行事業者)"
           htmlFor="company-invoice-number"
-          hint="インボイス登録をしている場合のみ入力してください"
+          hint="インボイス登録をしている場合のみ。「T」と数字13桁(例: T1234567890123)"
+          error={registrationError ?? undefined}
         >
           <input
             id="company-invoice-number"
@@ -178,6 +219,37 @@ export function CompanySettingsPage({ onSaved }: CompanySettingsPageProps) {
             }
           />
         </Field>
+        <Field
+          label="ロゴ画像(任意)"
+          htmlFor="company-logo"
+          hint="PNG または JPEG。書類の右上に小さく印刷されます。発行済みの書類のロゴは変わりません。"
+        >
+          <input
+            id="company-logo"
+            type="file"
+            accept="image/png,image/jpeg"
+            disabled={logoBusy}
+            onChange={(event) => {
+              void handleLogoSelected(event.target.files?.[0]);
+              event.target.value = "";
+            }}
+          />
+        </Field>
+        {logoPreview && (
+          <div className="company-logo-preview">
+            <img src={logoPreview} alt="登録するロゴ" />
+            <button
+              type="button"
+              onClick={() => {
+                setLogoAssetSha256(null);
+                setLogoPreview(null);
+              }}
+            >
+              ロゴを外す
+            </button>
+            <span className="hint">「保存する」を押すと反映されます。</span>
+          </div>
+        )}
         <Field label="振込先 銀行名" htmlFor="company-bank-name">
           <input
             id="company-bank-name"

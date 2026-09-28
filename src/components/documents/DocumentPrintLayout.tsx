@@ -50,6 +50,8 @@ export interface DocumentPrintLayoutProps {
    * 発行済みスナップショットには含めないので、登録後に再印刷すれば透かしは消える。ADR 0009)。
    */
   unlicensedWatermark?: boolean;
+  /** 会社ロゴの data URL(発行済みはスナップショットの画像)。無ければ表示しない。 */
+  logoDataUrl?: string | null;
 }
 
 export function DocumentPrintLayout({
@@ -69,6 +71,7 @@ export function DocumentPrintLayout({
   note,
   isDraftPreview,
   unlicensedWatermark = false,
+  logoDataUrl = null,
 }: DocumentPrintLayoutProps) {
   const summaryRows = buildTotalsSummaryRows({
     pricingType,
@@ -126,6 +129,7 @@ export function DocumentPrintLayout({
           {client.address && <p>{client.address}</p>}
         </div>
         <div className="print-company">
+          {logoDataUrl && <img className="print-logo" src={logoDataUrl} alt="" />}
           <p className="print-company-name">{company.displayName}</p>
           {company.representativeName && <p>{company.representativeName}</p>}
           {company.postalCode && <p>〒{company.postalCode}</p>}

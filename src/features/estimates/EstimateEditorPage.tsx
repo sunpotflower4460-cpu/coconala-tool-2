@@ -6,6 +6,7 @@ import {
   type SaveEstimateDraftLineInput,
 } from "@/application/commands/save-estimate-draft.command";
 import { getAppSettings } from "@/application/queries/get-app-settings.query";
+import { getCompany } from "@/application/queries/get-company.query";
 import { getDocumentDraft } from "@/application/queries/get-document-draft.query";
 import { listCatalogItems } from "@/application/queries/list-catalog-items.query";
 import { listClients } from "@/application/queries/list-clients.query";
@@ -15,6 +16,7 @@ import { SaveStatus, type SaveStatusValue } from "@/components/feedback/SaveStat
 import type { CatalogItem } from "@/domain/catalog/types";
 import type { Client } from "@/domain/clients/types";
 import type { DocumentType } from "@/domain/documents/types";
+import { addDaysToIsoDate, localTodayIsoDate } from "@/domain/documents/dates";
 import { buildTotalsSummaryRows } from "@/domain/documents/totals-summary";
 import { calculateDocumentTotals } from "@/domain/tax/calculate-document-totals";
 import type { PricingType, RoundingMode, TaxCategory } from "@/domain/tax/types";
@@ -76,6 +78,23 @@ export function EstimateEditorPage() {
     void listCatalogItems(db, { activeOnly: true }).then(setCatalogItems);
     void getAppSettings(db).then((settings) => setRoundingMode(settings.roundingMode));
   }, [db]);
+
+  // 新しい見積は、今日の日付と会社設定の「有効期限(日数)」から初期値を入れる(あとで変更できる)。
+  useEffect(() => {
+    if (id) return;
+    void getCompany(db).then((company) => {
+      const today = localTodayIsoDate();
+      setIssueDate((current) => current || today);
+      if (company?.estimateValidDays != null) {
+        const days = company.estimateValidDays;
+        setValidUntil((current) => current || addDaysToIsoDate(today, days));
+      }
+      if (company?.defaultNote) {
+        const defaultNote = company.defaultNote;
+        setNote((current) => current || defaultNote);
+      }
+    });
+  }, [db, id]);
 
   useEffect(() => {
     if (documentId === null) return;

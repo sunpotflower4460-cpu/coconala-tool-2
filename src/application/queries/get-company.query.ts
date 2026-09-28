@@ -15,6 +15,7 @@ interface CompanyRow {
   bank_account_number: string | null;
   bank_account_holder: string | null;
   logo_path: string | null;
+  logo_asset_sha256: string | null;
   estimate_valid_days: number | null;
   payment_due_days: number | null;
   default_note: string | null;
@@ -35,6 +36,7 @@ export function mapCompanyRow(row: CompanyRow): Company {
     bankAccountNumber: row.bank_account_number,
     bankAccountHolder: row.bank_account_holder,
     logoPath: row.logo_path,
+    logoAssetSha256: row.logo_asset_sha256,
     estimateValidDays: row.estimate_valid_days,
     paymentDueDays: row.payment_due_days,
     defaultNote: row.default_note,
@@ -45,8 +47,8 @@ export async function getCompany(db: DatabasePort): Promise<Company | null> {
   const rows = await db.select<CompanyRow>(
     `SELECT display_name, representative_name, postal_code, address, phone, email,
             invoice_registration_number, bank_name, bank_branch_name, bank_account_type,
-            bank_account_number, bank_account_holder, logo_path, estimate_valid_days,
-            payment_due_days, default_note
+            bank_account_number, bank_account_holder, logo_path, logo_asset_sha256,
+            estimate_valid_days, payment_due_days, default_note
      FROM companies WHERE id = 1`,
   );
   return rows[0] ? mapCompanyRow(rows[0]) : null;

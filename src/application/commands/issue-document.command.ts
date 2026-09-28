@@ -1,3 +1,4 @@
+import { localTodayIsoDate } from "@/domain/documents/dates";
 import type { DatabasePort, TransactionStatement } from "@/application/ports/database";
 import { documentEventStatementIfPreviousWriteAffected } from "@/application/commands/document-events.helper";
 import { toAppError, type AppError } from "@/application/errors";
@@ -52,13 +53,15 @@ export async function issueDocument(
     }
 
     const settings = await getAppSettings(db);
-    const issueDate = document.issueDate ?? new Date().toISOString().slice(0, 10);
+    // 発行日が空なら利用者のPCの地域時刻での今日(UTCだと日本の朝9時前は前日になってしまう)。
+    const issueDate = document.issueDate ?? localTodayIsoDate();
     const year = Number(issueDate.slice(0, 4));
     const prefix = prefixFor(document.documentType, settings);
 
+    // 書類番号の一意制約は全種別にかかるため、種別を問わず同じプレフィックスの番号から採番する
+    // (プレフィックスを変更・共用しても衝突しない)。
     const existingRows = await db.select<{ document_number: string }>(
-      `SELECT document_number FROM documents WHERE document_type = ? AND document_number IS NOT NULL`,
-      [document.documentType],
+      `SELECT document_number FROM documents WHERE document_number IS NOT NULL`,
     );
     const sequence = nextDocumentSequence(
       existingRows.map((row) => row.document_number),
