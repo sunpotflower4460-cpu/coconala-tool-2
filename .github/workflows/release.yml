@@ -40,6 +40,8 @@ jobs:
       - name: Release check (other v* tags)
         if: steps.tag.outputs.mode == 'basic'
         run: pnpm check:release
+      - name: 製品に含まれる依存関係の脆弱性(high以上)を検査
+        run: pnpm audit --prod --audit-level=high
       - name: Do not treat human verification as done
         run: |
           echo "このジョブはコード上のゲートだけを確認します。"
@@ -71,7 +73,8 @@ jobs:
       # 未設定の間は署名なしビルドが作られる。docs/MANUAL_STEPS.mdを参照。
       # 秘密情報が設定されていても、人間が RELEASE_EVIDENCE.md の署名・公証欄を
       # 記入するまで「署名済み」「公証済み」と案内しない。
-      # Windows成果物は初回販売対象外(docs/SUPPORTED_PLATFORMS.md)。CI成功 ≠ 正式対応。
+      # ココナラへ添付する納品zip(PDF・サンプル同梱)は .github/workflows/installers.yml で作る。
+      # Windowsは署名なしで配布する方針(docs/SUPPORTED_PLATFORMS.md)。CI成功 ≠ 実機確認済み。
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -81,8 +84,6 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "見積・請求書デスク ${{ github.ref_name }}"

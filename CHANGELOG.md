@@ -6,6 +6,9 @@
 
 ### Changed
 
+- `react-router-dom` を 7.18.4 へ更新(製品に含まれる依存関係の high 脆弱性を解消)。正式リリースのゲートで `pnpm audit --prod --audit-level=high` を必須化
+- 使っていない自動更新用の署名鍵(`TAURI_SIGNING_*`)を release.yml から削除
+
 - 更新の案内を「新しい版はココナラのメッセージでお届けします(自動更新はありません)」に統一し、誤解を招く「起動時に更新を確認する」スイッチを削除
 
 ### Fixed
@@ -24,6 +27,9 @@
 - アプリの二重起動を防止(macOS/Windows。2つ目の起動は既存ウィンドウを前面に出す)。PR #16 の復元失敗時ロールバック検証も含む
 
 ### Added
+
+- ココナラ納品zipの自動生成(`.github/workflows/installers.yml`): Mac(universal dmg、Secretsがあれば署名・公証、なければ `-unsigned`)と Windows(NSIS)をビルドし、購入者向けPDF(はじめにお読みください・クイックスタート・マニュアル・規約・免責)とサンプルCSVを同梱。200MB超・日本語ファイル名の文字化け(UTF-8フラグなし)を検出して失敗させる
+- `pnpm delivery:docs` / `pnpm delivery:package`、同梱用のサンプルCSV(`delivery/samples/`)
 
 - 購入者向けインストール手順書: `docs/INSTALL_GUIDE_MAC.md`(署名なしβ版の開き方を含む)、`docs/INSTALL_GUIDE_WINDOWS.md`(SmartScreen・上書き更新・アンインストール時のデータ削除の注意)
 - 販売予定OSを macOS + Windows に変更(`plannedSale`)。Windows を `firstSale` に入れる時は、手順書と日本語インストーラー設定が揃っているかをリリースゲートで検査

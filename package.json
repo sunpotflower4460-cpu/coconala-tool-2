@@ -30,7 +30,9 @@
     "seed:stress:ci": "node scripts/run-seed-stress.mjs --profile=ci",
     "icons": "tauri icon src-tauri/icons/source/app-icon.svg -o src-tauri/icons && rm -rf src-tauri/icons/android src-tauri/icons/ios",
     "license:keygen": "node scripts/license/keygen.mjs",
-    "license:issue": "node scripts/license/issue.mjs"
+    "license:issue": "node scripts/license/issue.mjs",
+    "delivery:docs": "node scripts/delivery/build-delivery-docs.mjs",
+    "delivery:package": "node scripts/delivery/package-delivery.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
@@ -39,7 +41,7 @@
     "@tauri-apps/plugin-sql": "^2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router-dom": "^7.6.0",
+    "react-router-dom": "^7.18.4",
     "zod": "^3.24.0"
   },
   "devDependencies": {
@@ -61,6 +63,7 @@
     "eslint-plugin-react-refresh": "^0.4.16",
     "globals": "^15.14.0",
     "jsdom": "^25.0.1",
+    "marked": "^15.0.12",
     "prettier": "^3.4.2",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.18.0",

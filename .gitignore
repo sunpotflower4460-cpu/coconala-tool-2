@@ -40,3 +40,6 @@ src-tauri/gen
 *.key
 ledger.csv
 license-ledger*
+
+# ココナラ納品物の生成先
+delivery-out

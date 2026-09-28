@@ -1,0 +1,163 @@
+name: Installers (ココナラ納品物)
+
+# ココナラのトークルームへ添付する納品zip(Mac / Windows)を作る。
+# - 手動実行(Actions タブ → "Installers (ココナラ納品物)" → Run workflow)またはタグで起動
+# - 出来上がった zip は、このワークフロー実行の Artifacts「coconala-delivery」からダウンロードする
+# - Mac は APPLE_* の Secrets が揃っていれば Developer ID 署名 + Apple 公証を行う。
+#   揃っていなければ署名なしで作り、zip 名に -unsigned を付ける(販売に使わない)
+# - Windows は署名なし(SmartScreen の手順を docs/INSTALL_GUIDE_WINDOWS.md で案内する)
+# このワークフローが成功しても、実機確認(インストール・PDF・バックアップ)は完了扱いにしない。
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installers-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mac:
+    name: macOS dmg (universal)
+    runs-on: macos-latest
+    env:
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - run: pnpm install --frozen-lockfile
+      - name: 署名できるか判定
+        id: sign
+        run: |
+          if [ -n "$APPLE_CERTIFICATE" ] && [ -n "$APPLE_CERTIFICATE_PASSWORD" ] && \
+             [ -n "$APPLE_SIGNING_IDENTITY" ] && [ -n "$APPLE_ID" ] && \
+             [ -n "$APPLE_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Apple の署名用 Secrets が揃っていないため、署名なし(-unsigned)で作ります。販売には使わないでください。"
+          fi
+      - name: ビルド(署名・公証あり)
+        if: steps.sign.outputs.signed == 'true'
+        run: pnpm tauri build --target universal-apple-darwin
+      - name: ビルド(署名なし)
+        if: steps.sign.outputs.signed != 'true'
+        env:
+          APPLE_CERTIFICATE: ""
+          APPLE_SIGNING_IDENTITY: ""
+          APPLE_ID: ""
+          APPLE_PASSWORD: ""
+        run: pnpm tauri build --target universal-apple-darwin
+      - name: 署名・公証の確認
+        if: steps.sign.outputs.signed == 'true'
+        run: |
+          APP="src-tauri/target/universal-apple-darwin/release/bundle/macos/MitsumoriDesk.app"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          spctl --assess --type execute --verbose=2 "$APP"
+          xcrun stapler validate "$APP"
+      - name: 成果物をまとめる
+        run: |
+          mkdir -p out
+          cp src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg out/
+          echo "${{ steps.sign.outputs.signed }}" > out/signed.txt
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-mac
+          path: out/
+          retention-days: 7
+
+  windows:
+    name: Windows NSIS installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm tauri build
+      - name: 成果物をまとめる
+        shell: bash
+        run: |
+          mkdir -p out
+          cp src-tauri/target/release/bundle/nsis/*-setup.exe out/
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-windows
+          path: out/
+          retention-days: 7
+
+  package:
+    name: 納品zipを作る
+    needs: [mac, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: 日本語フォントとChromium(PDF作成用)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-cjk
+          pnpm exec playwright install --with-deps chromium
+      - uses: actions/download-artifact@v4
+        with:
+          name: installer-mac
+          path: installers/mac
+      - uses: actions/download-artifact@v4
+        with:
+          name: installer-windows
+          path: installers/windows
+      - name: 購入者向けPDFを作る
+        run: pnpm delivery:docs
+      - name: 納品zipを作る
+        run: |
+          set -euo pipefail
+          DMG=$(ls installers/mac/*.dmg | head -n 1)
+          EXE=$(ls installers/windows/*-setup.exe | head -n 1)
+          MAC_FLAGS=""
+          if [ "$(cat installers/mac/signed.txt)" != "true" ]; then MAC_FLAGS="--unsigned"; fi
+          pnpm -s delivery:package --os mac --installer "$DMG" $MAC_FLAGS | tee -a summary.txt
+          pnpm -s delivery:package --os windows --installer "$EXE" | tee -a summary.txt
+      - name: 結果の要約
+        run: |
+          {
+            echo "## ココナラ納品zip"
+            echo '```'
+            cat summary.txt
+            echo '```'
+            echo "Artifacts の **coconala-delivery** からダウンロードしてください。"
+            echo "zip名に -unsigned が付いている Mac 版は署名・公証されていません(販売に使わない)。"
+            echo "実機でのインストール・PDF・バックアップの確認は docs/HUMAN_RELEASE_CHECKLIST.md に沿って人間が行います。"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coconala-delivery
+          path: delivery-out/*.zip
+          retention-days: 30
