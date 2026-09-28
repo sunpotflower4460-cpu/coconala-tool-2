@@ -348,6 +348,7 @@ export function collectReleaseFindings(rootDir, mode) {
   for (const conflict of findOsClaimConflicts(platforms, buyerFacingContents)) {
     rcRequiredFindings.push(conflict.message);
   }
+  rcRequiredFindings.push(...findDistributionReadinessIssues(rootDir, platforms));
 
   const secretHits = [];
   for (const relativePath of listSecretScanTargets(rootDir)) {
@@ -381,6 +382,54 @@ export function collectReleaseFindings(rootDir, mode) {
     supportState,
     platforms,
   };
+}
+
+/**
+ * firstSale に含めたOSの配布準備(インストール手順書・インストーラー設定)が揃っているか。
+ * 問題があれば日本語のメッセージを返す。
+ */
+export function findDistributionReadinessIssues(rootDir, platforms) {
+  const issues = [];
+  for (const os of platforms.firstSale ?? []) {
+    const distribution = platforms.distribution?.[os];
+    if (!distribution) {
+      issues.push(`${os}: docs/supported-platforms.json に distribution の定義がありません`);
+      continue;
+    }
+    const guidePath = path.join(rootDir, distribution.installGuide ?? "");
+    if (!distribution.installGuide || !existsSync(guidePath)) {
+      issues.push(
+        `${os}: インストール手順書 ${distribution.installGuide ?? "(未指定)"} がありません`,
+      );
+      continue;
+    }
+    const guide = readFileSync(guidePath, "utf-8");
+    if (os === "windows") {
+      if (!guide.includes("SmartScreen") || !guide.includes("詳細情報")) {
+        issues.push("windows: 手順書に SmartScreen(「詳細情報」→「実行」)の案内がありません");
+      }
+      if (!guide.includes("データを削除")) {
+        issues.push("windows: 手順書にアンインストール時のデータ削除の注意がありません");
+      }
+      const winConfPath = path.join(rootDir, "src-tauri/tauri.windows.conf.json");
+      const winConf = existsSync(winConfPath)
+        ? JSON.parse(readFileSync(winConfPath, "utf-8"))
+        : null;
+      if (!winConf?.bundle?.windows?.nsis?.languages?.includes("Japanese")) {
+        issues.push("windows: src-tauri/tauri.windows.conf.json の NSIS が日本語になっていません");
+      }
+    }
+    if (os === "macos") {
+      const macConfPath = path.join(rootDir, "src-tauri/tauri.macos.conf.json");
+      const macConf = existsSync(macConfPath)
+        ? JSON.parse(readFileSync(macConfPath, "utf-8"))
+        : null;
+      if (!macConf?.bundle?.targets?.includes("dmg")) {
+        issues.push("macos: src-tauri/tauri.macos.conf.json で dmg を作る設定になっていません");
+      }
+    }
+  }
+  return issues;
 }
 
 /** 埋め込みのライセンス公開鍵が、誰でも作れる開発用の鍵のままかどうか。 */

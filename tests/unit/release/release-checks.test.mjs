@@ -224,3 +224,34 @@ describe("ライセンス鍵と秘密鍵ファイルの検査", async () => {
     expect(hits.some((hit) => hit.name === "秘密鍵(PEM)")).toBe(true);
   });
 });
+
+describe("配布準備の検査(firstSale に入れたOS)", async () => {
+  const path = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const { findDistributionReadinessIssues, loadSupportedPlatforms } =
+    await import("../../../scripts/release-checks.mjs");
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+  const platforms = loadSupportedPlatforms(root);
+
+  it("販売予定は macOS と Windows。Windows は実機確認前なので firstSale に入れていない", () => {
+    expect(platforms.plannedSale).toEqual(["macos", "windows"]);
+    expect(platforms.firstSale).not.toContain("windows");
+  });
+
+  it("Windows を firstSale に移しても、手順書・日本語インストーラー設定が揃っている", () => {
+    const issues = findDistributionReadinessIssues(root, {
+      ...platforms,
+      firstSale: ["macos", "windows"],
+    });
+    expect(issues).toEqual([]);
+  });
+
+  it("手順書が無いOSを firstSale に入れると検出する", () => {
+    const issues = findDistributionReadinessIssues(root, {
+      ...platforms,
+      firstSale: ["windows"],
+      distribution: { windows: { installGuide: "docs/NOT_EXISTS.md" } },
+    });
+    expect(issues.join("\n")).toContain("インストール手順書");
+  });
+});

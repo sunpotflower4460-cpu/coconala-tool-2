@@ -7,15 +7,23 @@
 **人間の実機確認・署名・公証が終わるまで、この文書や販売文に「動作確認済み」「正式対応済み」と書かない。**
 CIでビルドが成功することと、正式対応は別です。
 
-## 初回販売の対象
+## 販売予定のOS
 
-- **macOS**(実機でのインストーラー確認・Developer ID署名・Apple公証・Gatekeeper確認が完了したあと、正式対応とする)
+販売者の方針は **macOS と Windows の両方**です(`plannedSale`)。配布物はココナラのトークルームへ添付する zip です。
 
-対応バージョンの下限は `src-tauri/tauri.conf.json` の `bundle.macOS.minimumSystemVersion`(現在は暫定値 `11.0`。WKWebViewの印刷機能とApple Silicon対応の下限)を、実機確認後に人間が確定する。
+| OS                        | 配布形式                                    | 署名                               | 手順書                                                 |
+| ------------------------- | ------------------------------------------- | ---------------------------------- | ------------------------------------------------------ |
+| macOS 11 以降             | dmg(Apple シリコン / Intel 共通)            | Developer ID 署名 + Apple 公証     | [`INSTALL_GUIDE_MAC.md`](INSTALL_GUIDE_MAC.md)         |
+| Windows 10 / 11(64ビット) | NSIS インストーラー(日本語・管理者権限不要) | 署名なし(SmartScreen の手順を案内) | [`INSTALL_GUIDE_WINDOWS.md`](INSTALL_GUIDE_WINDOWS.md) |
 
-## ビルドは存在するが、初回販売の対象外
+## 正式対応と案内してよい時期
 
-- **Windows**: CIでビルドは実行する。実機確認・コード署名・SmartScreen確認が完了するまで、販売ページ・README・マニュアル・ヘルプで正式対応と案内しない。
+- **macOS**: 実機でのインストール確認・署名・公証・Gatekeeper 確認が完了したあと(`firstSale` に含まれている)。
+  対応バージョンの下限は `src-tauri/tauri.conf.json` の `bundle.macOS.minimumSystemVersion`(現在は暫定値 `11.0`。WKWebView の印刷機能と Apple シリコン対応の下限)を、実機確認後に人間が確定する。
+- **Windows**: 実機でのインストール・SmartScreen・PDF・バックアップ・上書き更新を販売者が確認したあと、
+  `docs/supported-platforms.json` の `firstSale` に `"windows"` を追加し、`pendingDeviceVerification` から外す。
+  その時点で下の「使ってはいけない表現」の Windows 分は使ってよくなる。`pnpm check:release -- --rc` は、
+  `firstSale` に入れた OS の手順書とインストーラー設定が揃っているかを検査する。
 - **Linux**: 開発・CI・E2E用。購入者へ配布しない。
 
 ## 購入者向け文書で使ってよい表現 / 使ってはいけない表現

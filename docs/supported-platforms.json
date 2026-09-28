@@ -1,8 +1,21 @@
 {
-  "$comment": "販売上の公式対応OSの機械可読な正本。CIでビルドできることと、購入者へ正式対応と案内することは別。人間の実機確認が終わるまで firstSale に OS を追加しない。",
+  "$comment": "販売上の公式対応OSの機械可読な正本。販売予定は macOS と Windows の両方。CIでビルドできることと、購入者へ正式対応と案内することは別。人間の実機確認が終わるまで firstSale に OS を追加しない(Windows は実機確認後に販売者が firstSale へ移す。docs/MANUAL_STEPS.md)。",
+  "plannedSale": ["macos", "windows"],
   "firstSale": ["macos"],
   "pendingDeviceVerification": ["windows"],
   "ciOnly": ["linux"],
+  "distribution": {
+    "macos": {
+      "format": "dmg",
+      "signing": "Developer ID + Apple notarization",
+      "installGuide": "docs/INSTALL_GUIDE_MAC.md"
+    },
+    "windows": {
+      "format": "nsis",
+      "signing": "unsigned (SmartScreen guide)",
+      "installGuide": "docs/INSTALL_GUIDE_WINDOWS.md"
+    }
+  },
   "buyerFacingFiles": [
     "README.md",
     "docs/USER_MANUAL.md",
