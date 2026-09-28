@@ -3,6 +3,7 @@ import { buildDiagnosticsReport } from "@/application/commands/build-diagnostics
 import { createBackup } from "@/application/commands/create-backup.command";
 import { deletePracticeData } from "@/application/commands/delete-practice-data.command";
 import { exportBackup } from "@/application/commands/export-backup.command";
+import { exportCsv, type CsvExportKind } from "@/application/commands/export-csv.command";
 import { importBackup } from "@/application/commands/import-backup.command";
 import { restoreBackup } from "@/application/commands/restore-backup.command";
 import { saveDiagnosticsReport } from "@/application/commands/save-diagnostics-report.command";
@@ -40,6 +41,9 @@ export function DataManagementPage() {
   const [exportMessage, setExportMessage] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
 
+  const [csvMessage, setCsvMessage] = useState<string | null>(null);
+  const [csvError, setCsvError] = useState<string | null>(null);
+
   const [diagnosticsMessage, setDiagnosticsMessage] = useState<string | null>(null);
   const [diagnosticsError, setDiagnosticsError] = useState<string | null>(null);
 
@@ -47,6 +51,17 @@ export function DataManagementPage() {
   const [practiceError, setPracticeError] = useState<string | null>(null);
   const [practiceBusy, setPracticeBusy] = useState(false);
   const [showDeletePracticeConfirm, setShowDeletePracticeConfirm] = useState(false);
+
+  async function handleExportCsv(kind: CsvExportKind) {
+    setCsvMessage(null);
+    setCsvError(null);
+    const result = await exportCsv(db, tauriFileExport, kind);
+    if (!result.ok) {
+      setCsvError(result.error.message);
+      return;
+    }
+    if (result.value) setCsvMessage(`保存しました: ${result.value}`);
+  }
 
   function reloadBackups() {
     void tauriBackupStore
@@ -285,6 +300,25 @@ export function DataManagementPage() {
           onConfirm={() => void handleRestore()}
           onCancel={() => setRestoreTarget(null)}
         />
+      </section>
+
+      <section>
+        <h2>CSV書き出し</h2>
+        <p>
+          Excelなどで開けるCSVファイルに書き出します。顧客・価格表のCSVは、そのまま「CSV取り込み」で読み戻せます。
+          書類一覧は発行済みの書類だけを、発行時の金額・顧客名で書き出します(会計ソフトへの手入力や確認用)。
+        </p>
+        {csvError && <ErrorBanner message={csvError} code="csv_export_failed" />}
+        {csvMessage && <p role="status">{csvMessage}</p>}
+        <button type="button" onClick={() => void handleExportCsv("clients")}>
+          顧客を書き出す
+        </button>{" "}
+        <button type="button" onClick={() => void handleExportCsv("catalog")}>
+          価格表を書き出す
+        </button>{" "}
+        <button type="button" onClick={() => void handleExportCsv("documents")}>
+          発行済み書類の一覧を書き出す
+        </button>
       </section>
 
       <section>

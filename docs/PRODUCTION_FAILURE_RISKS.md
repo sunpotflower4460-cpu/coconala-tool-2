@@ -90,17 +90,17 @@ SQLiteはプロセス内でも、JSの `await` 境界で発行・保存・変換
 `tauri-plugin-sql` のコネクションプールでは `BEGIN` が別接続に載るため、複数文は
 `executeTransaction`(1本の rusqlite 接続)に統一している(ADR 0007)。
 
-| ID              | シナリオ                               | 再現                                  | 期待結果                                                                                                          | テスト                                                        |
-| --------------- | -------------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| CONC-01         | 同一下書きを同時発行(二重クリック相当) | `Promise.all(issue, issue)`           | 成功は1件。`issue` イベントも1件。番号は1つ。失敗側は `not_issuable`(SQLITE_ を出さない)                          | `tests/integration/database/production-failure-risks.test.ts` |
-| CONC-02         | 別下書きを同時発行                     | 2件の `issueDocument` を並列          | 書類番号は UNIQUE。少なくとも1件成功。失敗してもエンジン生メッセージを出さない。再試行で次番号                    | 同上                                                          |
-| CONC-03         | 発行中に下書き保存                     | 発行済みへ `saveEstimateDraft` / 並列 | `not_editable`。発行済み明細・スナップショットは消えない                                                          | 同上                                                          |
-| CONC-04         | 確認ダイアログ連打                     | 発行確認を処理中にもう一度押す        | `onConfirm` は1回。ボタンは disabled                                                                              | `tests/unit/production-risks/security-and-user-ops.test.tsx`  |
-| CONC-05         | 複数SQLの途中失敗                      | INSERTのあと NOT NULL 違反            | トランザクション全体がロールバック                                                                                | `execute-transaction.test.ts`                                 |
-| CONC-06         | 抽出中に「見積を作る」を連打           | 画面の `creating` フラグ              | フラグ中は二重作成しない実装。コマンド層は毎回新規下書きを作る                                                    | 残差(画面) / コマンドは `saveEstimateDraft(id: null)`         |
-| CONC-CONVERT-01 | 同じ見積から請求変換を2回              | `convertDocument` を連続              | **残差**: 請求下書きが2件できる。未承認なら元見積は `issued` のまま。スナップショットは不変。確定は発行確認がある | `production-failure-risks.test.ts`                            |
-| CONC-07         | バックアップ中の書き込み               | VACUUM INTO + 同時保存                | busy_timeout 5秒で待つ。失敗しても生きているDBを壊さない                                                          | Rust backup / 実機                                            |
-| CONC-08         | アプリ二重起動                         | 実OSで2プロセス                       | 単一インスタンス化(macOS/Windows)。2つ目は既存ウィンドウを前面に出して終了。データファイルは1つ                   | `tauri-plugin-single-instance` / 実機                         |
+| ID              | シナリオ                               | 再現                                  | 期待結果                                                                                                                         | テスト                                                                       |
+| --------------- | -------------------------------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| CONC-01         | 同一下書きを同時発行(二重クリック相当) | `Promise.all(issue, issue)`           | 成功は1件。`issue` イベントも1件。番号は1つ。失敗側は `not_issuable`(SQLITE_ を出さない)                                         | `tests/integration/database/production-failure-risks.test.ts`                |
+| CONC-02         | 別下書きを同時発行                     | 2件の `issueDocument` を並列          | 書類番号は UNIQUE。少なくとも1件成功。失敗してもエンジン生メッセージを出さない。再試行で次番号                                   | 同上                                                                         |
+| CONC-03         | 発行中に下書き保存                     | 発行済みへ `saveEstimateDraft` / 並列 | `not_editable`。発行済み明細・スナップショットは消えない                                                                         | 同上                                                                         |
+| CONC-04         | 確認ダイアログ連打                     | 発行確認を処理中にもう一度押す        | `onConfirm` は1回。ボタンは disabled                                                                                             | `tests/unit/production-risks/security-and-user-ops.test.tsx`                 |
+| CONC-05         | 複数SQLの途中失敗                      | INSERTのあと NOT NULL 違反            | トランザクション全体がロールバック                                                                                               | `execute-transaction.test.ts`                                                |
+| CONC-06         | 抽出中に「見積を作る」を連打           | 画面の `creating` フラグ              | フラグ中は二重作成しない実装。コマンド層は毎回新規下書きを作る                                                                   | 残差(画面) / コマンドは `saveEstimateDraft(id: null)`                        |
+| CONC-CONVERT-01 | 同じ見積から請求変換を2回              | `convertDocument` を連続              | 画面では既に作成済みの書類を一覧し、同じ種類へ変換するときは確認する。コマンド自体は複数作成を許す(残差)。スナップショットは不変 | `production-failure-risks.test.ts` / `duplicate-conversion-warning.test.tsx` |
+| CONC-07         | バックアップ中の書き込み               | VACUUM INTO + 同時保存                | busy_timeout 5秒で待つ。失敗しても生きているDBを壊さない                                                                         | Rust backup / 実機                                                           |
+| CONC-08         | アプリ二重起動                         | 実OSで2プロセス                       | 単一インスタンス化(macOS/Windows)。2つ目は既存ウィンドウを前面に出して終了。データファイルは1つ                                  | `tauri-plugin-single-instance` / 実機                                        |
 
 ---
 
@@ -124,21 +124,21 @@ SQLiteはプロセス内でも、JSの `await` 境界で発行・保存・変換
 
 ## 6. ユーザー操作
 
-| ID             | シナリオ                                  | 再現                          | 期待結果                                          | テスト                                                       |
-| -------------- | ----------------------------------------- | ----------------------------- | ------------------------------------------------- | ------------------------------------------------------------ |
-| USER-01        | 顧客名に `'; DROP TABLE`                  | `createClient`                | 名前として保存。テーブルは残る(バインド)          | `production-failure-risks.test.ts`                           |
-| USER-02        | 発行前の顧客未選択・会社未登録            | `issueDocument`               | `client_required` / `company_required`            | `issue-document.test.ts`                                     |
-| USER-03        | 空の問い合わせ文                          | `runInquiryExtraction("", …)` | `empty_text`                                      | `run-inquiry-extraction.test.ts`                             |
-| USER-04        | 全体値引きが小計超過                      | 下書き保存                    | 保存失敗。新規書類なし                            | `production-failure-risks.test.ts`                           |
-| USER-CSV-01    | 単価が式・小数・負数                      | CSV検証                       | エラー行。正常行だけ候補                          | `tests/unit/production-risks/security-and-user-ops.test.tsx` |
-| USER-CSV-02    | 商品名がSQL断片                           | CSV検証                       | 名前として通し、実行はパラメータ化                | 同上                                                         |
-| USER-DIALOG-01 | 発行確認の連打                            | ConfirmDialog                 | 1回だけ実行                                       | 同上                                                         |
-| USER-05        | バックアップ書き出し/取り込みのキャンセル | Fake store                    | `null` 成功。一覧は増えない                       | `backup-commands.test.ts`                                    |
-| USER-06        | 存在しないバックアップ復元                | 欠番ファイル名                | 失敗。現行データを消さない                        | 同上                                                         |
-| USER-07        | パス区切りを含むバックアップ名            | `../etc/passwd`               | 拒否                                              | Rust `reject_unsafe_file_name`                               |
-| USER-08        | 0円見積の発行                             | 明細0や単価0                  | 仕様上許可(0円)。誤入力は利用者が確認画面で止める | `calculate-document-totals.test.ts`                          |
-| USER-09        | 日本語IME中のショートカット               | 実機                          | 誤発行しない                                      | 実機 / 仕様 11章                                             |
-| USER-10        | 未保存のまま終了                          | クラッシュ                    | 可能な範囲で下書き復旧(未実装なら残差)            | 残差                                                         |
+| ID             | シナリオ                                  | 再現                              | 期待結果                                                                                                    | テスト                                                       |
+| -------------- | ----------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| USER-01        | 顧客名に `'; DROP TABLE`                  | `createClient`                    | 名前として保存。テーブルは残る(バインド)                                                                    | `production-failure-risks.test.ts`                           |
+| USER-02        | 発行前の顧客未選択・会社未登録            | `issueDocument`                   | `client_required` / `company_required`                                                                      | `issue-document.test.ts`                                     |
+| USER-03        | 空の問い合わせ文                          | `runInquiryExtraction("", …)`     | `empty_text`                                                                                                | `run-inquiry-extraction.test.ts`                             |
+| USER-04        | 全体値引きが小計超過                      | 下書き保存                        | 保存失敗。新規書類なし                                                                                      | `production-failure-risks.test.ts`                           |
+| USER-CSV-01    | 単価が式・小数・負数                      | CSV検証                           | エラー行。正常行だけ候補                                                                                    | `tests/unit/production-risks/security-and-user-ops.test.tsx` |
+| USER-CSV-02    | 商品名がSQL断片                           | CSV検証                           | 名前として通し、実行はパラメータ化                                                                          | 同上                                                         |
+| USER-DIALOG-01 | 発行確認の連打                            | ConfirmDialog                     | 1回だけ実行                                                                                                 | 同上                                                         |
+| USER-05        | バックアップ書き出し/取り込みのキャンセル | Fake store                        | `null` 成功。一覧は増えない                                                                                 | `backup-commands.test.ts`                                    |
+| USER-06        | 存在しないバックアップ復元                | 欠番ファイル名                    | 失敗。現行データを消さない                                                                                  | 同上                                                         |
+| USER-07        | パス区切りを含むバックアップ名            | `../etc/passwd`                   | 拒否                                                                                                        | Rust `reject_unsafe_file_name`                               |
+| USER-08        | 0円見積の発行                             | 明細0や単価0                      | 仕様上許可(0円)。誤入力は利用者が確認画面で止める                                                           | `calculate-document-totals.test.ts`                          |
+| USER-09        | 日本語IME中のショートカット               | 実機                              | 誤発行しない                                                                                                | 実機 / 仕様 11章                                             |
+| USER-10        | 未保存のまま移動・終了                    | 編集後にメニューで移動 / 数秒待つ | 移動前に確認ダイアログ。保存済みの下書きは入力が止まって5秒後に自動保存(クラッシュ時の損失を数秒分に抑える) | `tests/integration/database/estimate-editor-issue.test.tsx`  |
 
 ---
 
@@ -190,11 +190,11 @@ SQLiteはプロセス内でも、JSの `await` 境界で発行・保存・変換
 
 ## 残差(仕様として残すもの)
 
-- **CONC-CONVERT-01**: 見積→請求は発行済み以降何度でもできる。連打すると請求下書きが複数できる。未承認の見積は `issued` のまま(承認後の変換でのみ `invoiced`)。金額確定は各下書きの発行確認が必要。
+- **CONC-CONVERT-01**: 見積→請求は発行済み以降何度でもできる(画面では2回目以降に確認を出す)。未承認の見積は `issued` のまま(承認後の変換でのみ `invoiced`)。金額確定は各下書きの発行確認が必要。
 - **DATA-07**: CSV取り込みは行単位。ファイル全体の単一トランザクションではない。
 - **DATA-09**: 変換先IDのイベントはトランザクション外。
 - **SEC-10**: デスクトップ単一利用者の SQL 実行権限。
-- **USER-10**: クラッシュ時の未保存下書き自動復旧は未完成。
+- **USER-10**: 自動保存は「一度保存した下書き」だけ。最初の保存前にアプリが落ちた場合の入力は残らない。
 - **CONC-02**: 同時発行の片方は UNIQUE で失敗しうる。再試行が必要。データ破損は起きない。
 
 ---

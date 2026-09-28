@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useBlocker, useNavigate, useParams } from "react-router-dom";
 import { issueDocument } from "@/application/commands/issue-document.command";
 import {
   saveEstimateDraft,
@@ -33,6 +33,9 @@ function nextLineKey(): string {
   lineKeySeed += 1;
   return `line-${lineKeySeed}`;
 }
+
+/** 自動保存までの待ち時間(最後の入力からの経過) */
+const AUTOSAVE_DELAY_MS = 5000;
 
 function blankLine(): EditableLine {
   return {
@@ -73,6 +76,40 @@ export function EstimateEditorPage() {
   const [issuing, setIssuing] = useState(false);
   const [showIssueConfirm, setShowIssueConfirm] = useState(false);
 
+  // 未保存の変更の検出: 読み込み・初期値の設定・保存の直後の内容を「基準」とし、それと違えば未保存。
+  const formSnapshot = useMemo(
+    () =>
+      JSON.stringify({
+        clientId,
+        issueDate,
+        validUntil,
+        dueDate,
+        pricingType,
+        discountYen,
+        note,
+        lines: lines.map(({ key: _key, ...line }) => line),
+      }),
+    [clientId, issueDate, validUntil, dueDate, pricingType, discountYen, note, lines],
+  );
+  const [baseline, setBaseline] = useState<string | null>(null);
+  const [baselinePending, setBaselinePending] = useState(true);
+  useEffect(() => {
+    if (!baselinePending) return;
+    setBaseline(formSnapshot);
+    setBaselinePending(false);
+  }, [baselinePending, formSnapshot]);
+  // 読み込み直後(基準の更新待ち)の1回の描画では未保存扱いにしない。
+  const isDirty = !baselinePending && baseline !== null && formSnapshot !== baseline;
+
+  // 保存・発行の直後に行う画面移動は、確認ダイアログを出さずに通す。
+  const allowLeaveRef = useRef(false);
+  const savingRef = useRef(false);
+  const issuingRef = useRef(false);
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      isDirty && !allowLeaveRef.current && currentLocation.pathname !== nextLocation.pathname,
+  );
+
   useEffect(() => {
     void listClients(db).then(setClients);
     void listCatalogItems(db, { activeOnly: true }).then(setCatalogItems);
@@ -93,6 +130,7 @@ export function EstimateEditorPage() {
         const defaultNote = company.defaultNote;
         setNote((current) => current || defaultNote);
       }
+      setBaselinePending(true);
     });
   }, [db, id]);
 
@@ -123,6 +161,7 @@ export function EstimateEditorPage() {
             }))
           : [blankLine()],
       );
+      setBaselinePending(true);
     });
   }, [db, documentId]);
 
@@ -175,10 +214,15 @@ export function EstimateEditorPage() {
     );
   }
 
-  /** 保存に成功したら書類IDを返す。失敗時は null(エラーは画面に表示済み)。 */
-  async function handleSave(): Promise<number | null> {
+  /**
+   * 保存に成功したら書類IDを返す。失敗時は null。
+   * silent(自動保存)のときは、入力途中の不備でエラー帯を出さない。
+   */
+  async function handleSave(options: { silent?: boolean } = {}): Promise<number | null> {
+    if (savingRef.current) return null;
+    savingRef.current = true;
     setSaveStatus("saving");
-    setErrorMessage(null);
+    if (!options.silent) setErrorMessage(null);
 
     const result = await saveEstimateDraft(db, {
       id: documentId,
@@ -193,40 +237,71 @@ export function EstimateEditorPage() {
       lines: lines.map(({ key: _key, ...line }) => line),
     });
 
+    savingRef.current = false;
     if (!result.ok) {
+      if (options.silent) {
+        setSaveStatus("idle");
+        return null;
+      }
       setSaveStatus("error");
       setErrorMessage(result.error.message);
       return null;
     }
 
     setSaveStatus("saved");
+    setBaselinePending(true);
     if (documentId === null) {
+      allowLeaveRef.current = true;
       setDocumentId(result.value.header.id);
       void navigate(`/estimates/${result.value.header.id}`, { replace: true });
     }
     return result.value.header.id;
   }
 
+  // 自動保存: 一度保存した下書きは、入力が止まって数秒たったら保存する(発行中は行わない)。
+  useEffect(() => {
+    allowLeaveRef.current = false;
+    if (!isDirty || documentId === null || issuing) return;
+    const timer = window.setTimeout(() => {
+      if (!issuingRef.current) void handleSave({ silent: true });
+    }, AUTOSAVE_DELAY_MS);
+    return () => window.clearTimeout(timer);
+    // handleSave は毎回作り直されるため依存に含めない(最新の入力は formSnapshot の変化で追う)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formSnapshot, isDirty, documentId, issuing]);
+
+  async function handleOpenPrintPreview() {
+    if (documentId === null) return;
+    const savedId = isDirty ? await handleSave() : documentId;
+    if (savedId === null) return;
+    allowLeaveRef.current = true;
+    void navigate(`/documents/${savedId}/print`);
+  }
+
   async function handleIssue() {
     if (documentId === null) return;
+    issuingRef.current = true;
     setIssuing(true);
     setErrorMessage(null);
     // 画面上の最新の内容を発行するため、必ず保存してから発行する。
     // (保存せずに発行すると、最後に保存した古い内容が発行されてしまう)
     const savedId = await handleSave();
     if (savedId === null) {
+      issuingRef.current = false;
       setIssuing(false);
       setShowIssueConfirm(false);
       return;
     }
     const result = await issueDocument(db, savedId);
+    issuingRef.current = false;
     setIssuing(false);
     setShowIssueConfirm(false);
     if (!result.ok) {
       setErrorMessage(result.error.message);
       return;
     }
-    void navigate(`/documents/${documentId}`);
+    allowLeaveRef.current = true;
+    void navigate(`/documents/${savedId}`);
   }
 
   return (
@@ -237,7 +312,9 @@ export function EstimateEditorPage() {
           : `${DOCUMENT_TYPE_LABELS[documentType]}(下書き)を編集`}
       </h1>
       {documentId !== null && (
-        <Link to={`/documents/${documentId}/print`}>印刷プレビューを開く</Link>
+        <button type="button" onClick={() => void handleOpenPrintPreview()}>
+          印刷プレビューを開く
+        </button>
       )}
       {errorMessage && <ErrorBanner message={errorMessage} />}
       <div className="field">
@@ -454,6 +531,21 @@ export function EstimateEditorPage() {
         </button>
       )}
       <SaveStatus status={saveStatus} errorMessage={errorMessage ?? undefined} />
+      <p className="hint">
+        {documentId === null
+          ? "最初に「下書きを保存」を押すと、以後の変更は自動で保存されます。"
+          : isDirty
+            ? "未保存の変更があります(数秒後に自動で保存します)。"
+            : "変更はすべて保存されています。"}
+      </p>
+      <ConfirmDialog
+        open={blocker.state === "blocked"}
+        title="保存していない変更があります"
+        description="このまま移動すると、最後に保存してからの変更は失われます。移動しますか?"
+        confirmLabel="保存せずに移動する"
+        onConfirm={() => blocker.proceed?.()}
+        onCancel={() => blocker.reset?.()}
+      />
       <ConfirmDialog
         open={showIssueConfirm}
         title={`この${DOCUMENT_TYPE_LABELS[documentType]}を発行しますか?`}

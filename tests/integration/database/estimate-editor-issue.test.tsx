@@ -1,7 +1,7 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "@/application/commands/client.commands";
 import { saveCompany } from "@/application/commands/save-company.command";
 import { saveEstimateDraft } from "@/application/commands/save-estimate-draft.command";
@@ -74,6 +74,8 @@ function renderEditor(db: DatabasePort, documentId: number) {
     [
       { path: "/estimates/:id", element: <EstimateEditorPage /> },
       { path: "/documents/:id", element: <p>書類詳細</p> },
+      { path: "/documents/:id/print", element: <p>印刷プレビュー</p> },
+      { path: "/clients", element: <p>顧客一覧</p> },
     ],
     { initialEntries: [`/estimates/${documentId}`] },
   );
@@ -82,6 +84,7 @@ function renderEditor(db: DatabasePort, documentId: number) {
       <RouterProvider router={router} />
     </DatabaseContext.Provider>,
   );
+  return router;
 }
 
 describe("見積編集画面の発行", () => {
@@ -137,5 +140,59 @@ describe("見積編集画面の発行", () => {
       const draft = await getDocumentDraft(db, invoiceId);
       expect(draft?.header.dueDate).toBe("2026-09-30");
     });
+  });
+});
+
+describe("見積編集画面の未保存の変更の保護", () => {
+  let db: DatabasePort;
+
+  beforeEach(() => {
+    db = createTestDatabase();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("未保存のまま別の画面へ移ろうとすると確認し、キャンセルすれば編集を続けられる", async () => {
+    const documentId = await seed(db);
+    const user = userEvent.setup();
+    const router = renderEditor(db, documentId);
+    const priceInput = await screen.findByDisplayValue("30000");
+    await user.clear(priceInput);
+    await user.type(priceInput, "45000");
+
+    await act(() => router.navigate("/clients"));
+    expect(await screen.findByText("保存していない変更があります")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "キャンセル" }));
+    expect(screen.getByDisplayValue("45000")).toBeInTheDocument();
+
+    await act(() => router.navigate("/clients"));
+    await user.click(await screen.findByRole("button", { name: "保存せずに移動する" }));
+    expect(await screen.findByText("顧客一覧")).toBeInTheDocument();
+  });
+
+  it("変更がなければ確認なしで移動できる", async () => {
+    const documentId = await seed(db);
+    const router = renderEditor(db, documentId);
+    await screen.findByDisplayValue("30000");
+    await act(() => router.navigate("/clients"));
+    expect(await screen.findByText("顧客一覧")).toBeInTheDocument();
+  });
+
+  it("保存済みの下書きは、入力が止まって数秒後に自動で保存される", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const documentId = await seed(db);
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderEditor(db, documentId);
+    const priceInput = await screen.findByDisplayValue("30000");
+    await user.clear(priceInput);
+    await user.type(priceInput, "41000");
+    await act(() => vi.advanceTimersByTimeAsync(6000));
+    await waitFor(async () => {
+      const draft = await getDocumentDraft(db, documentId);
+      expect(draft?.lines[0]?.unitPriceYen).toBe(41000);
+    });
+    expect(await screen.findByText("変更はすべて保存されています。")).toBeInTheDocument();
   });
 });

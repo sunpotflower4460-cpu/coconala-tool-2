@@ -8,6 +8,11 @@ import {
   listDocumentEvents,
   type DocumentEvent,
 } from "@/application/queries/list-document-events.query";
+import {
+  listDerivedDocuments,
+  type DerivedDocument,
+} from "@/application/queries/list-derived-documents.query";
+import { ConfirmDialog } from "@/components/feedback/ConfirmDialog";
 import { ErrorBanner } from "@/components/feedback/ErrorBanner";
 import { canConvertDocument, isConvertibleStatus } from "@/domain/documents/conversion";
 import { canTransitionDocumentStatus, type DocumentStatus } from "@/domain/documents/status";
@@ -28,10 +33,13 @@ export function DocumentDetailPage() {
   const [events, setEvents] = useState<DocumentEvent[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [derived, setDerived] = useState<DerivedDocument[]>([]);
+  const [pendingConversion, setPendingConversion] = useState<DocumentType | null>(null);
 
   const reload = useCallback(() => {
     void getDocument(db, documentId).then(setDocument);
     void listDocumentEvents(db, documentId).then(setEvents);
+    void listDerivedDocuments(db, documentId).then(setDerived);
   }, [db, documentId]);
 
   useEffect(() => {
@@ -50,7 +58,17 @@ export function DocumentDetailPage() {
     reload();
   }
 
+  /** 同じ種類の書類を既に作っている場合は、二重作成を防ぐため確認してから変換する。 */
+  function requestConvert(targetType: DocumentType) {
+    if (derived.some((item) => item.documentType === targetType)) {
+      setPendingConversion(targetType);
+      return;
+    }
+    void handleConvert(targetType);
+  }
+
   async function handleConvert(targetType: DocumentType) {
+    setPendingConversion(null);
     setBusy(true);
     setErrorMessage(null);
     const result = await convertDocument(db, documentId, targetType);
@@ -138,7 +156,7 @@ export function DocumentDetailPage() {
               key={target}
               type="button"
               disabled={busy}
-              onClick={() => void handleConvert(target)}
+              onClick={() => requestConvert(target)}
             >
               {DOCUMENT_TYPE_LABELS[target]}に変換
             </button>
@@ -148,6 +166,40 @@ export function DocumentDetailPage() {
           複製して下書きを作る
         </button>
       </div>
+
+      {derived.length > 0 && (
+        <>
+          <h2>この書類から作成した書類</h2>
+          <ul>
+            {derived.map((item) => (
+              <li key={item.id}>
+                <Link
+                  to={item.status === "draft" ? `/estimates/${item.id}` : `/documents/${item.id}`}
+                >
+                  {DOCUMENT_TYPE_LABELS[item.documentType]}
+                  {item.documentNumber ? ` ${item.documentNumber}` : ""}(
+                  {DOCUMENT_STATUS_LABELS[item.status]})
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      <ConfirmDialog
+        open={pendingConversion !== null}
+        title={
+          pendingConversion
+            ? `この書類から作成した${DOCUMENT_TYPE_LABELS[pendingConversion]}が既にあります`
+            : ""
+        }
+        description="同じ内容の書類が2つできてしまう可能性があります。既にある書類は「この書類から作成した書類」から開けます。それでも、もう1つ作りますか?"
+        confirmLabel="もう1つ作る"
+        onConfirm={() => {
+          if (pendingConversion) void handleConvert(pendingConversion);
+        }}
+        onCancel={() => setPendingConversion(null)}
+      />
 
       <h2>履歴</h2>
       {events.length === 0 ? (
