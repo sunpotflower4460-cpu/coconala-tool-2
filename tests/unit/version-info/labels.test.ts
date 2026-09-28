@@ -2,15 +2,20 @@ import { describe, expect, it } from "vitest";
 import { LICENSE_LABELS, updateResultLabel } from "@/features/version-info/labels";
 
 describe("LICENSE_LABELS", () => {
-  it("unlicensedを購入者向けに不安を与えない文言で表示する(買い切り商品であることが分かる)", () => {
-    expect(LICENSE_LABELS.unlicensed).not.toMatch(/unlicensed/i);
-    expect(LICENSE_LABELS.unlicensed).toMatch(/買い切り|ライセンス認証不要/);
+  it("開発用語をそのまま出さず、未登録のときは登録を案内する", () => {
+    for (const label of Object.values(LICENSE_LABELS)) {
+      expect(label).not.toMatch(/unlicensed|invalid|valid/i);
+    }
+    expect(LICENSE_LABELS.unlicensed).toMatch(/未登録/);
+    expect(LICENSE_LABELS.valid).toMatch(/買い切り/);
   });
 });
 
 describe("updateResultLabel", () => {
-  it("not_configuredのとき、更新は販売ページから手動で提供されることを明示する", () => {
-    expect(updateResultLabel({ status: "not_configured" })).toMatch(/販売ページ.*手動/);
+  it("not_configuredのとき、新しい版はココナラのメッセージで届くことと自動更新がないことを明示する", () => {
+    const label = updateResultLabel({ status: "not_configured" });
+    expect(label).toMatch(/ココナラのメッセージ/);
+    expect(label).toMatch(/自動更新はありません/);
   });
 
   it("availableのとき新バージョン番号を表示する", () => {

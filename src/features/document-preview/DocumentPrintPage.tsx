@@ -11,6 +11,7 @@ import { calculateDocumentTotals } from "@/domain/tax/calculate-document-totals"
 import { ErrorBanner } from "@/components/feedback/ErrorBanner";
 import { DOCUMENT_TYPE_LABELS } from "@/lib/formatting/document-labels";
 import { useDatabase } from "@/infrastructure/database/use-database";
+import { useLicense } from "@/features/license/license-context";
 import { printDocument } from "@/infrastructure/print/print-document";
 
 type LoadState =
@@ -24,6 +25,7 @@ export function DocumentPrintPage() {
   const documentId = Number(id);
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [printError, setPrintError] = useState<string | null>(null);
+  const { status: licenseStatus } = useLicense();
 
   useEffect(() => {
     let cancelled = false;
@@ -173,6 +175,7 @@ export function DocumentPrintPage() {
         </Link>{" "}
         <button
           type="button"
+          disabled={licenseStatus === null}
           onClick={() => {
             setPrintError(null);
             // 印刷ダイアログで「PDFとして保存」したときの既定のファイル名になる。
@@ -186,7 +189,10 @@ export function DocumentPrintPage() {
         </button>
       </div>
       {printError && <ErrorBanner message={printError} code="print_failed" />}
-      <DocumentPrintLayout {...state.props} />
+      <DocumentPrintLayout
+        {...state.props}
+        unlicensedWatermark={licenseStatus !== null && licenseStatus.state !== "valid"}
+      />
     </div>
   );
 }

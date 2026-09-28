@@ -211,6 +211,37 @@ td {
   padding: 0.25rem 0.75rem;
 }
 
+/* ライセンス未登録時の透かし。position: fixed は印刷時に各ページへ繰り返し描かれる。
+   金額が読めなくならないよう薄く、クリック操作を妨げない。 */
+.license-watermark {
+  position: fixed;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-30deg);
+  font-size: 5rem;
+  font-weight: bold;
+  color: rgba(0, 0, 0, 0.08);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.license-watermark-footer {
+  margin-top: 1.5rem;
+  font-size: 0.75rem;
+  color: #666;
+  text-align: center;
+}
+
+.license-banner {
+  background: #fff8e1;
+  border: 1px solid #f0c36d;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
 .print-header {
   display: flex;
   justify-content: space-between;

@@ -3,6 +3,7 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
+import { devKeyPair } from "./license/license-format.mjs";
 
 export const LEGAL_DOCS = [
   {
@@ -26,13 +27,24 @@ const SUPPORT_CONTACT_FILES = [
   "src/features/help/HelpPage.tsx",
 ];
 
-const UPDATER_DOC_HINTS = ["自動更新は未設定", "更新は販売ページから手動", "tauri-plugin-updater"];
+const UPDATER_DOC_HINTS = [
+  "自動更新は未設定",
+  "自動更新はありません",
+  "更新は販売ページから手動",
+  "tauri-plugin-updater",
+];
 
 const SECRET_LIKE_PATTERNS = [
   { name: "Anthropic APIキー", pattern: /sk-ant-[a-zA-Z0-9_-]{10,}/ },
   { name: "一般的なAPIキー", pattern: /sk-[a-zA-Z0-9]{20,}/ },
   { name: "Google APIキー", pattern: /AIza[0-9A-Za-z_-]{35}/ },
+  { name: "秘密鍵(PEM)", pattern: /-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----/ },
 ];
+
+export const LICENSE_PUBLIC_KEY_PATH = "src-tauri/license/public_key.b64";
+// 証明書・秘密鍵・ライセンス台帳らしいファイル名(リポジトリに置いてはいけない)
+const PRIVATE_FILE_NAME_PATTERN =
+  /(\.(pem|p8|p12|pfx|key|cer|mobileprovision)$)|(^license-ledger)|(^ledger\.csv$)/i;
 
 const ALLOWED_EMAIL_DOMAINS = ["example.com", "example.org", "example.jp"];
 const EMAIL_PATTERN = /[\w.+-]+@([\w-]+\.[a-zA-Z]{2,})/g;
@@ -344,6 +356,19 @@ export function collectReleaseFindings(rootDir, mode) {
     const text = readFileSync(abs, "utf-8");
     secretHits.push(...findSecretLikeHits(text, relativePath));
   }
+  for (const relativePath of findPrivateKeyFiles(rootDir)) {
+    secretHits.push({
+      relativePath,
+      name: "秘密鍵・証明書ファイル",
+      message: `${relativePath}: 秘密鍵・証明書・台帳らしいファイルがリポジトリ内にあります(リポジトリの外へ移してください)`,
+    });
+  }
+
+  if (usesDevLicensePublicKey(rootDir)) {
+    placeholderFindings.push(
+      `${LICENSE_PUBLIC_KEY_PATH}: ライセンス公開鍵が開発用のままです(pnpm license:keygen で本番鍵を作り差し替える)`,
+    );
+  }
 
   return {
     packageVersion,
@@ -356,6 +381,31 @@ export function collectReleaseFindings(rootDir, mode) {
     supportState,
     platforms,
   };
+}
+
+/** 埋め込みのライセンス公開鍵が、誰でも作れる開発用の鍵のままかどうか。 */
+export function usesDevLicensePublicKey(rootDir) {
+  const file = path.join(rootDir, LICENSE_PUBLIC_KEY_PATH);
+  if (!existsSync(file)) return true;
+  return readFileSync(file, "utf-8").trim() === devKeyPair().publicKeyBase64;
+}
+
+/** リポジトリ全体から、秘密鍵・証明書・台帳らしいファイル名を探す。 */
+export function findPrivateKeyFiles(rootDir) {
+  const hits = [];
+  const walk = (absDir, relativeDir) => {
+    for (const entry of readdirSync(absDir, { withFileTypes: true })) {
+      if (SKIP_SECRET_SCAN_DIR_NAMES.has(entry.name)) continue;
+      const relativePath = relativeDir ? `${relativeDir}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        walk(path.join(absDir, entry.name), relativePath);
+      } else if (PRIVATE_FILE_NAME_PATTERN.test(entry.name)) {
+        hits.push(relativePath);
+      }
+    }
+  };
+  walk(rootDir, "");
+  return hits;
 }
 
 export function shouldFail(mode, findings) {

@@ -177,3 +177,50 @@ describe("shouldFail", () => {
     expect(shouldFail("basic", { ...clean, versionErrors: ["mismatch"] })).toBe(true);
   });
 });
+
+describe("ライセンス鍵と秘密鍵ファイルの検査", async () => {
+  const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const path = await import("node:path");
+  const { findPrivateKeyFiles, usesDevLicensePublicKey, LICENSE_PUBLIC_KEY_PATH } =
+    await import("../../../scripts/release-checks.mjs");
+  const { devKeyPair } = await import("../../../scripts/license/license-format.mjs");
+
+  function makeRepo() {
+    const dir = mkdtempSync(path.join(tmpdir(), "release-license-"));
+    mkdirSync(path.join(dir, "src-tauri/license"), { recursive: true });
+    return dir;
+  }
+
+  it("公開鍵が開発用のままなら検出し、差し替え後は検出しない", () => {
+    const dir = makeRepo();
+    writeFileSync(path.join(dir, LICENSE_PUBLIC_KEY_PATH), `${devKeyPair().publicKeyBase64}\n`);
+    expect(usesDevLicensePublicKey(dir)).toBe(true);
+    writeFileSync(
+      path.join(dir, LICENSE_PUBLIC_KEY_PATH),
+      "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\n",
+    );
+    expect(usesDevLicensePublicKey(dir)).toBe(false);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("秘密鍵・証明書・台帳のファイル名を検出し、node_modules は見ない", () => {
+    const dir = makeRepo();
+    writeFileSync(path.join(dir, "private.pem"), "x");
+    writeFileSync(path.join(dir, "src-tauri/cert.p12"), "x");
+    writeFileSync(path.join(dir, "ledger.csv"), "x");
+    mkdirSync(path.join(dir, "node_modules/pkg"), { recursive: true });
+    writeFileSync(path.join(dir, "node_modules/pkg/test.pem"), "x");
+    expect(findPrivateKeyFiles(dir).sort()).toEqual([
+      "ledger.csv",
+      "private.pem",
+      "src-tauri/cert.p12",
+    ]);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("PEM形式の秘密鍵の本文を秘密情報として検出する", () => {
+    const hits = findSecretLikeHits(`-----BEGIN ${"PRIVATE"} KEY-----\nabc\n`, "docs/x.md");
+    expect(hits.some((hit) => hit.name === "秘密鍵(PEM)")).toBe(true);
+  });
+});

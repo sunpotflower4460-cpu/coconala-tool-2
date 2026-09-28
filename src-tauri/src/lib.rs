@@ -32,6 +32,12 @@ pub(crate) fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/0004_feature_flags.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 5,
+            description: "license_and_assets",
+            sql: include_str!("../migrations/0005_license_and_assets.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -80,6 +86,7 @@ pub fn run() {
             commands::diagnostics::write_text_file,
             commands::transaction::execute_transaction,
             commands::print::print_current_webview,
+            commands::license::verify_license_key,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -150,5 +157,13 @@ mod tests {
     fn fourth_migration_adds_feature_flags_column() {
         let sql = &migrations()[3].sql;
         assert!(sql.contains("ALTER TABLE app_settings ADD COLUMN feature_flags_json"));
+    }
+
+    #[test]
+    fn fifth_migration_adds_license_columns_and_assets_table() {
+        let sql = &migrations()[4].sql;
+        assert!(sql.contains("ALTER TABLE app_settings ADD COLUMN license_key"));
+        assert!(sql.contains("CREATE TABLE app_assets"));
+        assert!(sql.contains("ALTER TABLE companies ADD COLUMN logo_asset_sha256"));
     }
 }

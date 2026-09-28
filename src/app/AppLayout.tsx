@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
+import { LicenseBanner } from "@/features/license/LicenseBanner";
 import { RequireDatabase } from "@/infrastructure/database/RequireDatabase";
 
 interface NavItem {
@@ -75,6 +76,7 @@ export function AppLayout() {
         ))}
       </nav>
       <main className="app-main">
+        <LicenseBanner />
         <RequireDatabase>
           <Outlet />
         </RequireDatabase>

@@ -1,17 +1,22 @@
 /**
- * ライセンス状態の抽象境界。
+ * ライセンス状態の抽象境界(ADR 0008 / 0009)。
  *
- * 方針(docs/02_DEVELOPMENT_PHASES.md Phase5): 販売テスト中は常時オンライン認証のような
- * 複雑なライセンスチェックを行わない。ライセンスチェックの失敗・未導入が、既存の
- * 会社情報・顧客・価格表・見積書等のデータ閲覧を妨げることは絶対にあってはならない。
- * このポートは表示目的(バージョン情報画面での状態表示)にのみ使い、
- * 書類の読み書きを行うapplication/domain層のコマンド・クエリからは参照しないこと。
+ * オフラインのライセンスキー(Ed25519署名)を検証する。検証結果は
+ * 「バージョン情報・案内帯の表示」と「印刷物の『未認証版』透かし」にだけ使う。
+ * ライセンスが無い・壊れている・検証できないことを理由に、会社情報・顧客・価格表・
+ * 書類の閲覧・編集・発行・バックアップを止めてはいけない。
+ * 書類の読み書きを行う application/commands・queries(ライセンス専用のものを除く)と
+ * domain からは参照しないこと(tests/unit/production-risks の SEC-04 で検査)。
  */
+export type LicenseInvalidReason =
+  "malformed" | "bad_signature" | "unsupported_version" | "wrong_product" | "verifier_unavailable";
+
 export type LicenseStatus =
   | { state: "unlicensed" }
-  | { state: "valid"; licensedTo: string | null }
-  | { state: "invalid"; reason: string };
+  | { state: "valid"; licenseId: string; issuedAt: string }
+  | { state: "invalid"; reason: LicenseInvalidReason };
 
-export interface LicensePort {
-  check(): Promise<LicenseStatus>;
+export interface LicenseVerifierPort {
+  /** キー文字列を検証する。例外を投げず、失敗は invalid で返すこと。 */
+  verify(key: string): Promise<LicenseStatus>;
 }

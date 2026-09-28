@@ -45,6 +45,11 @@ export interface DocumentPrintLayoutProps {
   discountYen: number;
   note: string | null;
   isDraftPreview: boolean;
+  /**
+   * ライセンス未登録のとき true。印刷物に「未認証版」を重ねて表示する(表示だけ。
+   * 発行済みスナップショットには含めないので、登録後に再印刷すれば透かしは消える。ADR 0009)。
+   */
+  unlicensedWatermark?: boolean;
 }
 
 export function DocumentPrintLayout({
@@ -63,6 +68,7 @@ export function DocumentPrintLayout({
   discountYen,
   note,
   isDraftPreview,
+  unlicensedWatermark = false,
 }: DocumentPrintLayoutProps) {
   const summaryRows = buildTotalsSummaryRows({
     pricingType,
@@ -75,6 +81,11 @@ export function DocumentPrintLayout({
 
   return (
     <div className="print-page">
+      {unlicensedWatermark && (
+        <div className="license-watermark" aria-hidden="true">
+          未認証版
+        </div>
+      )}
       {isDraftPreview && <p className="draft-watermark">下書きプレビュー(未発行)</p>}
 
       <header className="print-header">
@@ -200,6 +211,11 @@ export function DocumentPrintLayout({
           <h2>備考</h2>
           <p>{note}</p>
         </div>
+      )}
+      {unlicensedWatermark && (
+        <p className="license-watermark-footer">
+          この書類は未認証版の見積・請求書デスクで作成されました。
+        </p>
       )}
     </div>
   );

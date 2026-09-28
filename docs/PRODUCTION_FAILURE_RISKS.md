@@ -13,7 +13,7 @@ API・認証・通信・同時実行・データ不整合・ユーザー操作�
 2. フロントエンド → Anthropic Messages API(`https://api.anthropic.com/v1/messages`)
 
 認証も利用者アカウントではなく、任意機能のAI APIキー(OS資格情報ストア)を指す。
-ライセンス確認は表示専用で、失敗しても帳票データは開ける(ADR 0008)。
+ライセンス確認はオフラインの署名検証で、結果は表示と印刷の透かしにだけ使う。失敗しても帳票データは開ける(ADR 0008 / 0009)。
 
 ---
 
@@ -60,13 +60,13 @@ API・認証・通信・同時実行・データ不整合・ユーザー操作�
 
 ## 2. 認証
 
-| ID      | シナリオ                                             | 再現                                         | 期待結果                                                | テスト                                                                                                       |
-| ------- | ---------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| AUTH-01 | APIキー未設定・空文字・削除後                        | キーなしで抽出 / 空白保存 / 削除後に接続確認 | `no_api_key` または `invalid_api_key`。SQLiteは触らない | `api-auth-comms.test.ts`                                                                                     |
-| AUTH-02 | OS資格情報ストアが使えない                           | `SecretStore.set` が例外                     | 日本語の保存失敗。例外は画面へ出さない。帳票DBは無傷    | 同上                                                                                                         |
-| AUTH-03 | APIキーが通常DB・診断・migrationに混入               | 抽出成功後にSQLiteバイト列と診断JSONを検索   | `sk-ant-` が無い。migrationに secret 列名が無い         | `run-inquiry-extraction.test.ts` / `no-secret-columns-in-migrations.test.ts`                                 |
-| AUTH-04 | ライセンス未設定・ライセンスサーバー障害             | `noLicenseCheck.check()`                     | 常に `unlicensed`。書類の読み書きはライセンスを見ない   | `tests/unit/license/no-license-check.test.ts` / `tests/unit/production-risks/security-and-user-ops.test.tsx` |
-| AUTH-05 | 実機でKeychain/Credential Manager/Secret Service不在 | Linuxコンテナや権限拒否                      | キー保存失敗の案内。見積・発行はAIなしで継続            | 実機(`MANUAL_STEPS.md`)                                                                                      |
+| ID      | シナリオ                                             | 再現                                         | 期待結果                                                                                                  | テスト                                                                                  |
+| ------- | ---------------------------------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| AUTH-01 | APIキー未設定・空文字・削除後                        | キーなしで抽出 / 空白保存 / 削除後に接続確認 | `no_api_key` または `invalid_api_key`。SQLiteは触らない                                                   | `api-auth-comms.test.ts`                                                                |
+| AUTH-02 | OS資格情報ストアが使えない                           | `SecretStore.set` が例外                     | 日本語の保存失敗。例外は画面へ出さない。帳票DBは無傷                                                      | 同上                                                                                    |
+| AUTH-03 | APIキーが通常DB・診断・migrationに混入               | 抽出成功後にSQLiteバイト列と診断JSONを検索   | `sk-ant-` が無い。migrationに secret 列名が無い                                                           | `run-inquiry-extraction.test.ts` / `no-secret-columns-in-migrations.test.ts`            |
+| AUTH-04 | ライセンス未登録・キー不正・検証器の障害             | キーなし / 改ざんキー / IPC失敗              | `unlicensed` または `invalid`。例外を投げない。誤ったキーは保存しない。書類の読み書きはライセンスを見ない | `tests/unit/production-risks/security-and-user-ops.test.tsx` / Rust `commands::license` |
+| AUTH-05 | 実機でKeychain/Credential Manager/Secret Service不在 | Linuxコンテナや権限拒否                      | キー保存失敗の案内。見積・発行はAIなしで継続                                                              | 実機(`MANUAL_STEPS.md`)                                                                 |
 
 ---
 
@@ -164,7 +164,7 @@ SQLiteはプロセス内でも、JSの `await` 境界で発行・保存・変換
 | SEC-01 | 任意URLへの通信                   | CSP `connect-src` を読む          | `api.anthropic.com` 以外(ワイルドカードなし)                                                              | `tests/unit/production-risks/security-and-user-ops.test.tsx` |
 | SEC-02 | 任意シェル実行                    | capabilities                      | `shell:*` なし                                                                                            | 同上                                                         |
 | SEC-03 | 診断へのキー混入                  | レポートに `sk-ant-` を混ぜて保存 | 保存中止                                                                                                  | 同上                                                         |
-| SEC-04 | ライセンスでデータロック          | ポートのみ                        | 書類コマンドは LicensePort を呼ばない                                                                     | 同上 / ADR 0008                                              |
+| SEC-04 | ライセンスでデータロック          | commands/queries/domain を走査    | ライセンスを参照するのはライセンス専用のファイルだけ。未認証でも全機能が使え、印刷に透かしが入るだけ      | 同上 / ADR 0009                                              |
 | SEC-05 | バックアップパス横断              | `../` をファイル名に指定          | 拒否                                                                                                      | `backup.rs`                                                  |
 | SEC-06 | 未信頼バックアップの巨大ファイル  | 512MB超                           | 開く前に拒否。自作バックアップはサイズだけでは捨てない                                                    | `backup.rs`                                                  |
 | SEC-07 | SQLインジェクション               | 顧客名にSQL断片                   | パラメータバインド。DROPしない                                                                            | USER-01 / Rust json_to_sql_value                             |

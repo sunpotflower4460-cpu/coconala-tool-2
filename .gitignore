@@ -31,3 +31,12 @@ src-tauri/gen
 *.njsproj
 *.sln
 *.sw?
+
+# 秘密鍵・証明書・ライセンス台帳(絶対にコミットしない。リポジトリ外で保管する)
+*.pem
+*.p8
+*.p12
+*.pfx
+*.key
+ledger.csv
+license-ledger*

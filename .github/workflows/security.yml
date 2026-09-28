@@ -41,3 +41,17 @@ jobs:
             echo "APIキーらしき文字列が検出されました。" >&2
             exit 1
           fi
+      - name: Reject committed private keys and certificates
+        run: |
+          if grep -RInE -e "-----BEGIN ([A-Z]+ )?PRIVATE KEY-----" \
+            --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=target .; then
+            echo "秘密鍵らしき文字列が検出されました(ライセンス署名鍵・証明書はリポジトリに置かない)。" >&2
+            exit 1
+          fi
+          found=$(find . -path ./node_modules -prune -o -path ./.git -prune -o -path ./src-tauri/target -prune -o \
+            -type f \( -iname "*.pem" -o -iname "*.p8" -o -iname "*.p12" -o -iname "*.pfx" -o -iname "*.key" -o -iname "ledger.csv" \) -print)
+          if [ -n "$found" ]; then
+            echo "秘密鍵・証明書・台帳らしいファイルがあります:" >&2
+            echo "$found" >&2
+            exit 1
+          fi

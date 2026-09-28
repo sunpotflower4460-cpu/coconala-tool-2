@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { render, screen } from "@testing-library/react";
@@ -7,7 +7,9 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ConfirmDialog } from "@/components/feedback/ConfirmDialog";
 import { saveDiagnosticsReport } from "@/application/commands/save-diagnostics-report.command";
-import { noLicenseCheck } from "@/infrastructure/license/no-license-check";
+import { getLicenseStatus } from "@/application/queries/get-license-status.query";
+import { activateLicense } from "@/application/commands/license.commands";
+import { createTestDatabase } from "@/lib/test-utils/sqlite";
 import { notConfiguredUpdateCheck } from "@/infrastructure/updates/not-configured-update-check";
 import { CATALOG_ITEM_CSV_FIELDS, guessColumnMapping } from "@/domain/csv/fields";
 import { parseCsv } from "@/domain/csv/parse";
@@ -51,8 +53,8 @@ describe("SEC-03 診断保存は秘密情報パターンで中止する", () => 
       os: "linux",
       osArch: "x64",
       dbSizeBytes: 1,
-      dbSchemaVersion: 4,
-      currentSchemaVersion: 4,
+      dbSchemaVersion: 5,
+      currentSchemaVersion: 5,
       aiEnabled: true,
       counts: { clients: 0, catalogItems: 0, documents: 0 },
       // 型上は無いが、混入経路を模して余分なフィールドを付ける
@@ -65,9 +67,49 @@ describe("SEC-03 診断保存は秘密情報パターンで中止する", () => 
 });
 
 describe("SEC-04 ライセンス・更新確認の障害で帳票が開けなくならない", () => {
-  it("未設定でも例外を投げず、データ層から参照されないポートである", async () => {
-    await expect(noLicenseCheck.check()).resolves.toEqual({ state: "unlicensed" });
+  it("キー未登録でも、検証器が壊れていても例外を投げない", async () => {
+    const db = createTestDatabase();
+    const brokenVerifier = { verify: () => Promise.reject(new Error("IPC broken")) };
+    await expect(getLicenseStatus(db, brokenVerifier)).resolves.toEqual({ state: "unlicensed" });
+    await db.execute("UPDATE app_settings SET license_key = 'MDK1.a.b' WHERE id = 1");
+    await expect(getLicenseStatus(db, brokenVerifier)).resolves.toEqual({
+      state: "invalid",
+      reason: "verifier_unavailable",
+    });
     await expect(notConfiguredUpdateCheck.check()).resolves.toEqual({ status: "not_configured" });
+  });
+
+  it("正しくないキーは保存せず、登録済みの正しいキーを上書きしない", async () => {
+    const db = createTestDatabase();
+    const verifier = {
+      verify: (key: string) =>
+        Promise.resolve(
+          key === "MDK1.good.sig"
+            ? ({ state: "valid", licenseId: "L-1", issuedAt: "2026-10-01" } as const)
+            : ({ state: "invalid", reason: "bad_signature" } as const),
+        ),
+    };
+    expect((await activateLicense(db, verifier, " MDK1.good.sig\n")).ok).toBe(true);
+    expect((await activateLicense(db, verifier, "MDK1.forged.sig")).ok).toBe(false);
+    const rows = await db.select<{ license_key: string }>(
+      "SELECT license_key FROM app_settings WHERE id = 1",
+    );
+    expect(rows[0]?.license_key).toBe("MDK1.good.sig");
+  });
+
+  it("書類・マスターのコマンド/クエリと domain はライセンスを参照しない(データをロックしない)", () => {
+    const roots = ["src/application/commands", "src/application/queries", "src/domain"].map((dir) =>
+      path.join(repoRoot, dir),
+    );
+    const offenders: string[] = [];
+    for (const root of roots) {
+      for (const file of readdirSync(root, { recursive: true }) as string[]) {
+        if (!/\.(ts|tsx)$/.test(file) || /license/i.test(file)) continue;
+        const text = readFileSync(path.join(root, file), "utf-8");
+        if (/license/i.test(text)) offenders.push(path.join(root, file));
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });
 
