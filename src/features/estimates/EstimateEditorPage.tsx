@@ -15,6 +15,7 @@ import { SaveStatus, type SaveStatusValue } from "@/components/feedback/SaveStat
 import type { CatalogItem } from "@/domain/catalog/types";
 import type { Client } from "@/domain/clients/types";
 import type { DocumentType } from "@/domain/documents/types";
+import { buildTotalsSummaryRows } from "@/domain/documents/totals-summary";
 import { calculateDocumentTotals } from "@/domain/tax/calculate-document-totals";
 import type { PricingType, RoundingMode, TaxCategory } from "@/domain/tax/types";
 import { useDatabase } from "@/infrastructure/database/use-database";
@@ -59,6 +60,7 @@ export function EstimateEditorPage() {
   const [clientId, setClientId] = useState<number | null>(null);
   const [issueDate, setIssueDate] = useState("");
   const [validUntil, setValidUntil] = useState("");
+  const [dueDate, setDueDate] = useState("");
   const [pricingType, setPricingType] = useState<PricingType>("tax_exclusive");
   const [discountYen, setDiscountYen] = useState(0);
   const [note, setNote] = useState("");
@@ -83,6 +85,7 @@ export function EstimateEditorPage() {
       setClientId(draft.header.clientId);
       setIssueDate(draft.header.issueDate ?? "");
       setValidUntil(draft.header.validUntil ?? "");
+      setDueDate(draft.header.dueDate ?? "");
       setPricingType(draft.header.pricingType);
       setDiscountYen(draft.header.discountYen);
       setNote(draft.header.note ?? "");
@@ -153,7 +156,8 @@ export function EstimateEditorPage() {
     );
   }
 
-  async function handleSave() {
+  /** 保存に成功したら書類IDを返す。失敗時は null(エラーは画面に表示済み)。 */
+  async function handleSave(): Promise<number | null> {
     setSaveStatus("saving");
     setErrorMessage(null);
 
@@ -161,7 +165,8 @@ export function EstimateEditorPage() {
       id: documentId,
       clientId,
       issueDate: issueDate || null,
-      dueDate: null,
+      // 支払期限は請求書のときだけ編集できる。他の種別では読み込んだ値をそのまま保つ。
+      dueDate: dueDate || null,
       validUntil: validUntil || null,
       pricingType,
       discountYen,
@@ -172,7 +177,7 @@ export function EstimateEditorPage() {
     if (!result.ok) {
       setSaveStatus("error");
       setErrorMessage(result.error.message);
-      return;
+      return null;
     }
 
     setSaveStatus("saved");
@@ -180,13 +185,22 @@ export function EstimateEditorPage() {
       setDocumentId(result.value.header.id);
       void navigate(`/estimates/${result.value.header.id}`, { replace: true });
     }
+    return result.value.header.id;
   }
 
   async function handleIssue() {
     if (documentId === null) return;
     setIssuing(true);
     setErrorMessage(null);
-    const result = await issueDocument(db, documentId);
+    // 画面上の最新の内容を発行するため、必ず保存してから発行する。
+    // (保存せずに発行すると、最後に保存した古い内容が発行されてしまう)
+    const savedId = await handleSave();
+    if (savedId === null) {
+      setIssuing(false);
+      setShowIssueConfirm(false);
+      return;
+    }
+    const result = await issueDocument(db, savedId);
     setIssuing(false);
     setShowIssueConfirm(false);
     if (!result.ok) {
@@ -232,15 +246,28 @@ export function EstimateEditorPage() {
             onChange={(event) => setIssueDate(event.target.value)}
           />
         </div>
-        <div className="field">
-          <label htmlFor="estimate-valid-until">有効期限</label>
-          <input
-            id="estimate-valid-until"
-            type="date"
-            value={validUntil}
-            onChange={(event) => setValidUntil(event.target.value)}
-          />
-        </div>
+        {documentType === "estimate" && (
+          <div className="field">
+            <label htmlFor="estimate-valid-until">有効期限</label>
+            <input
+              id="estimate-valid-until"
+              type="date"
+              value={validUntil}
+              onChange={(event) => setValidUntil(event.target.value)}
+            />
+          </div>
+        )}
+        {documentType === "invoice" && (
+          <div className="field">
+            <label htmlFor="estimate-due-date">お支払期限</label>
+            <input
+              id="estimate-due-date"
+              type="date"
+              value={dueDate}
+              onChange={(event) => setDueDate(event.target.value)}
+            />
+          </div>
+        )}
         <div className="field">
           <label htmlFor="estimate-pricing-type">税の表示方法</label>
           <select
@@ -371,11 +398,26 @@ export function EstimateEditorPage() {
       </div>
       {totals && (
         <div aria-live="polite">
-          <p>小計: {formatYen(totals.subtotalYen)}</p>
-          <p>消費税: {formatYen(totals.taxYen)}</p>
-          <p>
-            <strong>合計: {formatYen(totals.totalYen)}</strong>
-          </p>
+          {buildTotalsSummaryRows({
+            pricingType,
+            subtotalYen: totals.subtotalYen,
+            totalYen: totals.totalYen,
+            discountYen,
+            taxBreakdown: totals.taxBreakdown,
+          }).map((row) =>
+            row.kind === "total" ? (
+              <p key={row.kind}>
+                <strong>
+                  {row.label}: {formatYen(row.amountYen)}
+                </strong>
+              </p>
+            ) : (
+              <p key={`${row.kind}-${row.taxCategory ?? ""}`}>
+                {row.label}:{" "}
+                {row.amountYen < 0 ? `-${formatYen(-row.amountYen)}` : formatYen(row.amountYen)}
+              </p>
+            ),
+          )}
         </div>
       )}
       <button
@@ -396,7 +438,7 @@ export function EstimateEditorPage() {
       <ConfirmDialog
         open={showIssueConfirm}
         title={`この${DOCUMENT_TYPE_LABELS[documentType]}を発行しますか?`}
-        description="発行すると書類番号が採番され、会社情報・顧客情報・金額が固定されます。発行後は明細を編集できません。"
+        description="画面の内容を保存してから発行します。発行すると書類番号が採番され、会社情報・顧客情報・金額が固定されます。発行後は明細を編集できません。"
         confirmLabel="発行する"
         onConfirm={() => void handleIssue()}
         onCancel={() => setShowIssueConfirm(false)}

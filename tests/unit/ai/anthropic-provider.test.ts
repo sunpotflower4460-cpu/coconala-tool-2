@@ -23,6 +23,21 @@ describe("AnthropicProvider", () => {
     expect(result.ok).toBe(true);
   });
 
+  it("デスクトップのWebViewから呼べるよう、直接呼び出し許可ヘッダーとAPIバージョンを付ける", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(200, { content: [{ type: "text", text: "OK" }] }));
+    vi.stubGlobal("fetch", fetchMock);
+    const provider = new AnthropicProvider();
+    await provider.testConnection("sk-ant-valid-key");
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://api.anthropic.com/v1/messages");
+    const headers = init.headers as Record<string, string>;
+    expect(headers["anthropic-dangerous-direct-browser-access"]).toBe("true");
+    expect(headers["anthropic-version"]).toBeTruthy();
+    expect(headers["x-api-key"]).toBe("sk-ant-valid-key");
+  });
+
   it("testConnectionは403でforbiddenを返す", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(403, { error: "forbidden" })));
     const provider = new AnthropicProvider();

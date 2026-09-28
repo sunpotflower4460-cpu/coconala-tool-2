@@ -31,3 +31,13 @@ Phase 2では選択肢1を採用する。
 - 利用者は「印刷」ボタン→OSダイアログ→「PDFとして保存」を選ぶ、という1手順増える(ワンクリックではない)。
 - 明細が多いページの改ページ位置はブラウザの印刷エンジンに依存する。`thead`の`display: table-header-group`により2ページ目以降にもヘッダー行を再掲し、`tr`に`break-inside: avoid`を指定して行の途中改行を防ぐ。
 - Phase 4/5で「ワンクリックPDF出力」を評価する際、選択肢2(Rust側レンダリング)を再検討する。その際もこのADRを更新する。
+
+## 追記(Phase 7): 印刷ダイアログはRustから開く
+
+WebViewの `window.print()` は、macOS(WKWebView)ではTauri側の許可設定に依存して無反応になることがある。
+そのため印刷ボタンはRustコマンド `print_current_webview`(Tauri 2 の `Webview::print()`)を呼ぶ。
+Tauri外(開発用ブラウザ・テスト)では `window.print()` にフォールバックする(`src/infrastructure/print/print-document.ts`)。
+
+- 失敗しても例外を画面に出さず、日本語のエラー帯を表示する。
+- 印刷前に `document.title` を「書類種別_書類番号_顧客名」にし、「PDFとして保存」の既定ファイル名にする。
+- 実機で印刷ダイアログが開くことの確認は人間作業(`docs/MANUAL_STEPS.md`)。

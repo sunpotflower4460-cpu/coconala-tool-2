@@ -45,7 +45,21 @@ pub(crate) fn current_schema_version() -> i64 {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+
+    // 2つ目の起動は、既に開いているウィンドウを前面に出して終了する。
+    // 単一インスタンスのプラグインは他のプラグインより先に登録する必要がある。
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        use tauri::Manager;
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.unminimize();
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }));
+
+    builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(
@@ -65,6 +79,7 @@ pub fn run() {
             commands::diagnostics::get_system_diagnostics,
             commands::diagnostics::write_text_file,
             commands::transaction::execute_transaction,
+            commands::print::print_current_webview,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -81,7 +81,8 @@ function buildProps(
     quantity: line.quantity,
     unitPriceYen: line.unitPriceYen,
     taxCategory: line.taxCategory ?? "taxable_10",
-    amountYen: totals.lines[index]?.amountYen ?? 0,
+    amountYen: totals.lines[index]?.rawAmountYen ?? 0,
+    lineDiscountYen: line.lineDiscountYen ?? 0,
   }));
   return {
     documentType: "estimate",

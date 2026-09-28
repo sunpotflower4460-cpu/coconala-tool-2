@@ -96,6 +96,9 @@ async function callAnthropic(
         "content-type": "application/json",
         "x-api-key": apiKey,
         "anthropic-version": ANTHROPIC_VERSION,
+        // デスクトップアプリのWebViewから直接呼ぶため、ブラウザ経由の呼び出し(CORS)を明示的に許可する。
+        // キーは購入者自身のもので、購入者のPCの中だけで使う(販売者のサーバーを経由しない)。
+        "anthropic-dangerous-direct-browser-access": "true",
       },
       body: JSON.stringify({ model, ...body }),
       signal,

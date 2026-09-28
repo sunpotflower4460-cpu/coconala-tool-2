@@ -1,9 +1,14 @@
 import type { Client } from "@/domain/clients/types";
 import type { DocumentStatus } from "@/domain/documents/status";
 import type { DocumentType } from "@/domain/documents/types";
+import {
+  buildTotalsSummaryRows,
+  PRINT_TAX_RATE_LABELS,
+  REDUCED_TAX_RATE_LEGEND,
+} from "@/domain/documents/totals-summary";
 import type { Company } from "@/domain/shared/company";
 import type { PricingType, TaxCategory, TaxGroupTotal } from "@/domain/tax/types";
-import { DOCUMENT_TYPE_LABELS, TAX_CATEGORY_LABELS } from "@/lib/formatting/document-labels";
+import { DOCUMENT_TYPE_LABELS } from "@/lib/formatting/document-labels";
 import { formatYen } from "@/lib/formatting/money";
 
 export interface DocumentPrintLine {
@@ -13,7 +18,13 @@ export interface DocumentPrintLine {
   quantity: number;
   unitPriceYen: number;
   taxCategory: TaxCategory;
+  /**
+   * 明細値引き後・全体値引き按分前の金額(calculateDocumentTotals の rawAmountYen)。
+   * 全体値引きは合計欄の「値引き」行だけで表し、明細の金額には混ぜない。
+   */
   amountYen: number;
+  /** 明細値引き(円)。0または未指定なら表示しない */
+  lineDiscountYen?: number;
 }
 
 export interface DocumentPrintLayoutProps {
@@ -44,6 +55,7 @@ export function DocumentPrintLayout({
   dueDate,
   company,
   client,
+  pricingType,
   lines,
   subtotalYen,
   totalYen,
@@ -52,6 +64,15 @@ export function DocumentPrintLayout({
   note,
   isDraftPreview,
 }: DocumentPrintLayoutProps) {
+  const summaryRows = buildTotalsSummaryRows({
+    pricingType,
+    subtotalYen,
+    totalYen,
+    discountYen,
+    taxBreakdown,
+  });
+  const hasReducedRate = lines.some((line) => line.taxCategory === "taxable_8");
+
   return (
     <div className="print-page">
       {isDraftPreview && <p className="draft-watermark">下書きプレビュー(未発行)</p>}
@@ -112,7 +133,7 @@ export function DocumentPrintLayout({
         </div>
       </div>
 
-      <p className="print-total-highlight">合計金額: {formatYen(totalYen)}</p>
+      <p className="print-total-highlight">合計金額(税込): {formatYen(totalYen)}</p>
 
       <table className="print-lines">
         <thead>
@@ -132,41 +153,45 @@ export function DocumentPrintLayout({
                 {line.description && (
                   <div className="print-line-description">{line.description}</div>
                 )}
+                {(line.lineDiscountYen ?? 0) > 0 && (
+                  <div className="print-line-description">
+                    明細値引き -{formatYen(line.lineDiscountYen ?? 0)}
+                  </div>
+                )}
               </td>
               <td>
                 {line.quantity}
                 {line.unit ?? ""}
               </td>
               <td>{formatYen(line.unitPriceYen)}</td>
-              <td>{TAX_CATEGORY_LABELS[line.taxCategory]}</td>
+              <td>{PRINT_TAX_RATE_LABELS[line.taxCategory]}</td>
               <td>{formatYen(line.amountYen)}</td>
             </tr>
           ))}
         </tbody>
       </table>
 
+      {hasReducedRate && <p className="print-tax-legend">{REDUCED_TAX_RATE_LEGEND}</p>}
+
       <table className="print-totals">
         <tbody>
-          <tr>
-            <th>小計</th>
-            <td>{formatYen(subtotalYen)}</td>
-          </tr>
-          {discountYen > 0 && (
-            <tr>
-              <th>値引き</th>
-              <td>-{formatYen(discountYen)}</td>
-            </tr>
-          )}
-          {taxBreakdown.map((group) => (
-            <tr key={group.taxCategory}>
-              <th>消費税({TAX_CATEGORY_LABELS[group.taxCategory]})</th>
-              <td>{formatYen(group.taxYen)}</td>
+          {summaryRows.map((row) => (
+            <tr
+              key={`${row.kind}-${row.taxCategory ?? ""}`}
+              className={
+                row.kind === "total"
+                  ? "print-total-row"
+                  : row.kind === "taxable_base" || row.kind === "included_tax"
+                    ? "print-totals-reference"
+                    : undefined
+              }
+            >
+              <th>{row.label}</th>
+              <td>
+                {row.amountYen < 0 ? `-${formatYen(-row.amountYen)}` : formatYen(row.amountYen)}
+              </td>
             </tr>
           ))}
-          <tr className="print-total-row">
-            <th>合計</th>
-            <td>{formatYen(totalYen)}</td>
-          </tr>
         </tbody>
       </table>
 

@@ -281,7 +281,7 @@ td {
 }
 
 .print-totals {
-  width: 40%;
+  width: 50%;
   margin-left: auto;
   margin-top: 1rem;
   break-inside: avoid;
@@ -302,6 +302,19 @@ td {
   font-size: 1.1rem;
   font-weight: bold;
   border-top: 2px solid black;
+}
+
+/* 税率ごとの対象額・うち消費税は参考行(合計へ加算しない)なので控えめに表示する */
+.print-totals-reference th,
+.print-totals-reference td {
+  font-size: 0.85rem;
+  color: #444;
+}
+
+.print-tax-legend {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  text-align: right;
 }
 
 .print-note {

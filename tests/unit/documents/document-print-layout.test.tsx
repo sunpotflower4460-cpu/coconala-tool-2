@@ -148,8 +148,11 @@ describe("DocumentPrintLayout", () => {
         })}
       />,
     );
+    expect(screen.getByText("10%対象(税抜)")).toBeInTheDocument();
     expect(screen.getByText("消費税(10%)")).toBeInTheDocument();
-    expect(screen.getByText("消費税(8%(軽減税率))")).toBeInTheDocument();
+    expect(screen.getByText("8%※対象(税抜)")).toBeInTheDocument();
+    expect(screen.getByText("消費税(8%※)")).toBeInTheDocument();
+    expect(screen.getByText("※は軽減税率(8%)対象")).toBeInTheDocument();
   });
 
   it("0円の明細でも金額表示が崩れない", () => {

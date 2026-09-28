@@ -100,7 +100,7 @@ SQLiteはプロセス内でも、JSの `await` 境界で発行・保存・変換
 | CONC-06         | 抽出中に「見積を作る」を連打           | 画面の `creating` フラグ              | フラグ中は二重作成しない実装。コマンド層は毎回新規下書きを作る                                                    | 残差(画面) / コマンドは `saveEstimateDraft(id: null)`         |
 | CONC-CONVERT-01 | 同じ見積から請求変換を2回              | `convertDocument` を連続              | **残差**: 請求下書きが2件できる。未承認なら元見積は `issued` のまま。スナップショットは不変。確定は発行確認がある | `production-failure-risks.test.ts`                            |
 | CONC-07         | バックアップ中の書き込み               | VACUUM INTO + 同時保存                | busy_timeout 5秒で待つ。失敗しても生きているDBを壊さない                                                          | Rust backup / 実機                                            |
-| CONC-08         | アプリ二重起動                         | 実OSで2プロセス                       | SQLiteロック。後発は開けないか待つ。データファイルは1つ                                                           | 実機                                                          |
+| CONC-08         | アプリ二重起動                         | 実OSで2プロセス                       | 単一インスタンス化(macOS/Windows)。2つ目は既存ウィンドウを前面に出して終了。データファイルは1つ                   | `tauri-plugin-single-instance` / 実機                         |
 
 ---
 

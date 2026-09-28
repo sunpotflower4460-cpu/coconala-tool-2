@@ -1,6 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { DocumentPrintLayout } from "@/components/documents/DocumentPrintLayout";
+import {
+  buildTotalsSummaryRows,
+  isTotalsSummaryConsistent,
+} from "@/domain/documents/totals-summary";
 import { formatYen } from "@/lib/formatting/money";
 import { PDF_VISUAL_CASES } from "../../fixtures/pdf-visual/cases";
 
@@ -14,7 +18,7 @@ describe("PDF販売品質 fixture A〜M（見た目の最終判定は人間）",
     expect(screen.getByRole("heading", { name: "見積書" })).toBeInTheDocument();
     expect(document.body.textContent).toContain(visualCase.distinctiveText);
     expect(
-      screen.getByText(`合計金額: ${formatYen(visualCase.props.totalYen)}`),
+      screen.getByText(`合計金額(税込): ${formatYen(visualCase.props.totalYen)}`),
     ).toBeInTheDocument();
     expect(visualCase.props.lines.length).toBeGreaterThan(0);
   });
@@ -58,7 +62,40 @@ describe("PDF販売品質 fixture A〜M（見た目の最終判定は人間）",
     if (!visualCase) throw new Error("missing L");
     render(<DocumentPrintLayout {...visualCase.props} />);
     expect(screen.getByText("消費税(10%)")).toBeInTheDocument();
-    expect(screen.getByText("消費税(8%(軽減税率))")).toBeInTheDocument();
-    expect(screen.getByText("消費税(非課税)")).toBeInTheDocument();
+    expect(screen.getByText("消費税(8%※)")).toBeInTheDocument();
+    expect(screen.getByText("10%対象(税抜)")).toBeInTheDocument();
+    expect(screen.getByText("8%※対象(税抜)")).toBeInTheDocument();
+    expect(screen.getByText("非課税対象")).toBeInTheDocument();
+    expect(screen.getByText("※は軽減税率(8%)対象")).toBeInTheDocument();
+  });
+
+  it("K は値引き前の明細合計・値引き・値引き後の小計を上から順に表示する", () => {
+    const visualCase = PDF_VISUAL_CASES.find((item) => item.id === "K");
+    if (!visualCase) throw new Error("missing K");
+    render(<DocumentPrintLayout {...visualCase.props} />);
+    const { subtotalYen, discountYen } = visualCase.props;
+    expect(screen.getByText("明細合計")).toBeInTheDocument();
+    expect(screen.getByText("小計(値引き後)")).toBeInTheDocument();
+    const labels = Array.from(document.querySelectorAll(".print-totals th")).map(
+      (th) => th.textContent,
+    );
+    expect(labels.indexOf("明細合計")).toBeLessThan(labels.indexOf("値引き"));
+    expect(labels.indexOf("値引き")).toBeLessThan(labels.indexOf("小計(値引き後)"));
+    expect(screen.getAllByText(formatYen(subtotalYen + discountYen)).length).toBeGreaterThan(0);
+  });
+
+  it.each(PDF_VISUAL_CASES)(
+    "$id 合計欄の数字は上から足し引きすると合計(税込)になる",
+    (visualCase) => {
+      const rows = buildTotalsSummaryRows(visualCase.props);
+      expect(isTotalsSummaryConsistent(rows)).toBe(true);
+    },
+  );
+
+  it("明細の金額は全体値引きを按分する前の額で印字する(K)", () => {
+    const visualCase = PDF_VISUAL_CASES.find((item) => item.id === "K");
+    if (!visualCase) throw new Error("missing K");
+    const lineSum = visualCase.props.lines.reduce((sum, line) => sum + line.amountYen, 0);
+    expect(lineSum).toBe(visualCase.props.subtotalYen + visualCase.props.discountYen);
   });
 });

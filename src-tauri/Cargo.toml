@@ -27,3 +27,8 @@ serde_json = "1"
 keyring = { version = "4.1.5", features = ["apple-native-keyring-store"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 
+
+# 二重起動を防ぐ(同じDBファイルを2つのプロセスで開かないため。CONC-08)。
+# Linuxは購入者へ配布しない開発・CI用のため対象外(E2E環境のD-Bus依存を避ける)。
+[target.'cfg(any(target_os = "macos", target_os = "windows"))'.dependencies]
+tauri-plugin-single-instance = "2"
