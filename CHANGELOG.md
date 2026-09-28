@@ -6,6 +6,11 @@
 
 ### Changed
 
+- サポート窓口を「ココナラのトークルーム/ダイレクトメッセージ」に確定(`support-contact: CONFIRMED`)。ヘルプ・README・マニュアル・クイックスタート・出品文・デモ台本・規約案を、両OS・ライセンスキー・更新の配布方法に合わせて更新
+- ヘルプに ライセンスキー / 収入印紙 / パソコンの移行 / Windowsのアンインストール時の注意 を追加
+- 販売者向けの `docs/SELLER_OPERATIONS.md`(受注〜納品〜更新の手順と定型文)と `docs/SUPPORT_PLAYBOOK.md`(問い合わせ対応)を追加
+- 古くなっていた文書(DATA_MODEL のバックアップ方式、E2Eの実施範囲、SECURITY の更新権限、存在しない証跡テンプレートへの参照)を修正
+
 - `react-router-dom` を 7.18.4 へ更新(製品に含まれる依存関係の high 脆弱性を解消)。正式リリースのゲートで `pnpm audit --prod --audit-level=high` を必須化
 - 使っていない自動更新用の署名鍵(`TAURI_SIGNING_*`)を release.yml から削除
 

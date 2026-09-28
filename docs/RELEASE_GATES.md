@@ -47,7 +47,7 @@
 - 署名済みビルドが作れること(実機確認は未完了でもよい)
 - β利用者限定で配布する
 - GitHub Releaseはdraftで作成する
-- テスト証跡(`docs/TEST_EVIDENCE_TEMPLATE.md`等、整備され次第)を添付する
+- テスト証跡(`docs/RELEASE_EVIDENCE.md`)を記入する
 
 ### 正式タグ(`vX.Y.Z`、`-rc`を含まない)
 

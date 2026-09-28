@@ -18,12 +18,13 @@ OS標準の資格情報ストア(macOS Keychain / Windows Credential Manager / L
 ## 通信
 
 - AIを使う場合のみ、利用者が明示的に実行した問い合わせ文だけを送信する。送信前に内容を画面表示する。
-- Tauriの`http`権限は、AI Providerのエンドポイントと自動更新の配布先のみに限定する。任意URLへの通信は許可しない。
+- 外部への通信先は CSP の `connect-src` で `https://api.anthropic.com` のみに限定する。自動更新は行わない(新しい版はココナラのメッセージで配布)。任意URLへの通信は許可しない。
 
 ## Tauri権限(Capabilities)
 
 - `capabilities/default.json`には、DBアクセス・ダイアログ・必要なファイル操作など、通常画面が必要とする権限だけを列挙する。
-- 更新処理用の権限は別Capabilityへ分離する(Phase 5)。
+- 自動更新を行わないため、更新処理用の権限は付与しない。
+- ライセンスキーの検証はRustのコマンド(`verify_license_key`)で行い、秘密鍵はアプリにもリポジトリにも含めない(ADR 0009)。
 - 診断ファイル書き出しは、許可した保存先のみに制限する(Phase 4)。
 - 任意のShellコマンド実行権限(`shell:allow-execute`等)は付与しない。
 - 外部から選んだバックアップファイルは、SQLiteを開く前にサイズを確認する。アプリ自身が作成したバックアップをサイズだけで破棄しない。

@@ -33,9 +33,19 @@ describe("HelpPage", () => {
     expect(screen.getByText(/AIの結果は最終決定ではありません/)).toBeInTheDocument();
   });
 
-  it("自動更新が未設定であることと、初回販売OSがmacOSであることを示す", () => {
+  it("自動更新はなく、更新とお問い合わせはココナラのメッセージで行うことを示す", () => {
     render(<HelpPage />);
-    expect(screen.getByText(/自動更新は未設定です/)).toBeInTheDocument();
-    expect(screen.getByText(/初回販売の対象OSは macOS/)).toBeInTheDocument();
+    expect(screen.getByText(/自動更新はありません/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/ココナラのトークルーム\(取引完了後はココナラのダイレクトメッセージ\)/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/販売予定のOSは macOS/)).toBeInTheDocument();
+  });
+
+  it("ライセンスキー・収入印紙・パソコンの移行の案内がある", () => {
+    render(<HelpPage />);
+    expect(screen.getByText(/ライセンスキーとは何ですか/)).toBeInTheDocument();
+    expect(screen.getByText(/領収書に収入印紙は必要ですか/)).toBeInTheDocument();
+    expect(screen.getByText(/別のパソコンへ移したいです/)).toBeInTheDocument();
   });
 });

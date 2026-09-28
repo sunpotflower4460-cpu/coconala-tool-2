@@ -214,7 +214,7 @@ Phase 1〜2時点のSQLiteスキーマ。実体は`src-tauri/migrations/0001_ini
 
 ## バックアップ(Phase 4)
 
-`<アプリの設定フォルダ>/backups/`配下に、DBファイルのコピー(および存在する場合は`-wal`/`-shm`/`-journal`)をタイムスタンプ付きファイル名で保存する。復元前には必ず現在のDBを同じ場所へ自動退避し、復元に失敗した場合はその退避データへロールバックする(`src-tauri/src/commands/backup.rs`)。バックアップの内容検証は`PRAGMA integrity_check`と`app_settings`テーブルの存在確認で行う。詳細はADR 0007を参照。
+`<アプリの設定フォルダ>/backups/`配下に、SQLiteの`VACUUM INTO`で作った一貫性のあるDBの写しとメタデータJSON(manifest)をタイムスタンプ付きファイル名で保存する。会社ロゴは`app_assets`テーブルに入っているため、DBの写しに含まれる。復元前には必ず現在のDBを同じ場所へ自動退避し、復元に失敗した場合はその退避データへロールバックする(`src-tauri/src/commands/backup.rs`)。バックアップの内容検証は`PRAGMA integrity_check`と`app_settings`テーブルの存在確認で行う。詳細はADR 0007を参照。
 
 ## 複数SQL文の原子的な書き込み(Phase 4)
 
