@@ -43,6 +43,8 @@ GitHub Actionsやローカルコマンドの結果だけを書く。成功した
 | CI rust job                     | `.github/workflows/ci.yml`                                                           | 未記録 | run URL                                                                  |
 | CI build (ubuntu/macOS/windows) | `.github/workflows/ci.yml`                                                           | 未記録 | Windowsジョブ成功 ≠ Windows正式対応                                      |
 | CI e2e-tauri                    | `.github/workflows/ci.yml`                                                           | 未記録 |                                                                          |
+| 納品zip                         | `.github/workflows/installers.yml`(Artifacts `coconala-delivery`)                    | 未記録 | Mac zip 名に `-unsigned` が無いこと、200MB以下、SHA-256 を記録           |
+| 本番依存の脆弱性                | `pnpm audit --prod --audit-level=high`(release.yml の gate で必須)                   | 未記録 |                                                                          |
 
 CIのURLを貼る場合は、対象SHAと一致していることを確認する。
 
@@ -53,24 +55,27 @@ CIのURLを貼る場合は、対象SHAと一致していることを確認する
 ここは GitHub Actions では絶対に「完了」と判定しない。
 担当者が実機または実キーで確認した日付と環境を書く。未実施なら空欄のままにする。
 
-| 項目                      | 確認内容                                                                | 実施日 | 環境                | 結果                   |
-| ------------------------- | ----------------------------------------------------------------------- | ------ | ------------------- | ---------------------- |
-| macOS実機インストール     | 対象macOSへDMGを入れて起動できる                                        |        | 機種 / OSバージョン | 未実施                 |
-| macOS署名                 | Developer ID Applicationで署名されている                                |        |                     | 未実施                 |
-| Apple公証                 | notarization が通っている                                               |        |                     | 未実施                 |
-| Gatekeeper                | ダウンロードしたDMGを右クリックなしで開ける、または案内どおり許可できる |        |                     | 未実施                 |
-| Windows実機インストール   | 初回販売対象にする場合のみ                                              |        |                     | 未実施(初回販売対象外) |
-| Windows署名 / SmartScreen | 初回販売対象にする場合のみ                                              |        |                     | 未実施                 |
-| 日本語PDF目視             | `docs/PDF_VISUAL_TEST_CHECKLIST.md` の全ケース                          |        |                     | 未実施                 |
-| バックアップ復元          | 作成→変更→復元→再起動を10回                                             |        |                     | 未実施                 |
-| 上書き更新時のDB保持      | 新バージョンを上書きインストールしても既存DBが残る                      |        |                     | 未実施                 |
-| 実Anthropic API           | 本人のキーで保存・接続確認・削除                                        |        |                     | 未実施                 |
-| 初心者βテスト             | 5〜10名。観察シートは `docs/BETA_TEST_OBSERVATION_SHEET.md`             |        |                     | 未実施                 |
-| LICENSE権利者名           | プレースホルダー解消                                                    |        |                     | 未実施                 |
-| 利用規約                  | `_DRAFT` を外し専門家レビュー済み                                       |        |                     | 未実施                 |
-| 免責事項                  | `_DRAFT` を外し専門家レビュー済み                                       |        |                     | 未実施                 |
-| publisher / copyright     | `tauri.conf.json` に確定値                                              |        |                     | 未実施                 |
-| サポート窓口              | `support-contact: CONFIRMED` に更新                                     |        |                     | 未実施                 |
+| 項目                    | 確認内容                                                                 | 実施日     | 環境                | 結果                   |
+| ----------------------- | ------------------------------------------------------------------------ | ---------- | ------------------- | ---------------------- |
+| macOS実機インストール   | 対象macOSへDMGを入れて起動できる                                         |            | 機種 / OSバージョン | 未実施                 |
+| macOS署名               | Developer ID Applicationで署名されている                                 |            |                     | 未実施                 |
+| Apple公証               | notarization が通っている                                                |            |                     | 未実施                 |
+| Gatekeeper              | ダウンロードしたDMGを右クリックなしで開ける、または案内どおり許可できる  |            |                     | 未実施                 |
+| Windows実機インストール | Windows 10 / 11 へ日本語インストーラーで入れて起動できる(管理者権限なし) |            |                     | 未実施                 |
+| Windows SmartScreen     | 署名なし。手順書どおり「詳細情報」→「実行」で起動できる                  |            |                     | 未実施                 |
+| 日本語PDF目視           | `docs/PDF_VISUAL_TEST_CHECKLIST.md` の全ケース                           |            |                     | 未実施                 |
+| バックアップ復元        | 作成→変更→復元→再起動を10回                                              |            |                     | 未実施                 |
+| 上書き更新時のDB保持    | 新バージョンを上書きインストールしても既存DBが残る                       |            |                     | 未実施                 |
+| 実Anthropic API         | 本人のキーで保存・接続確認・削除                                         |            |                     | 未実施                 |
+| 初心者βテスト           | 5〜10名。観察シートは `docs/BETA_TEST_OBSERVATION_SHEET.md`              |            |                     | 未実施                 |
+| LICENSE権利者名         | プレースホルダー解消                                                     |            |                     | 未実施                 |
+| 利用規約                | `_DRAFT` を外し専門家レビュー済み                                        |            |                     | 未実施                 |
+| 免責事項                | `_DRAFT` を外し専門家レビュー済み                                        |            |                     | 未実施                 |
+| publisher / copyright   | `tauri.conf.json` に確定値                                               |            |                     | 未実施                 |
+| ライセンス本番鍵        | `pnpm license:keygen` の公開鍵に差し替え済み。秘密鍵をバックアップ済み   |            |                     | 未実施                 |
+| ライセンスキー登録      | 本番鍵で発行したキーを実機で登録でき、改ざんキーは拒否される             |            |                     | 未実施                 |
+| 納品zipの添付           | ココナラのトークルームへ実際に添付できる                                 |            |                     | 未実施                 |
+| サポート窓口            | ココナラのトークルーム/DMに確定(`support-contact: CONFIRMED`)            | 2026-09-28 | 文書                | 確定(コード・文書のみ) |
 
 ---
 

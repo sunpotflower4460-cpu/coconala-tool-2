@@ -46,33 +46,49 @@
 - [ ] SQLx互換の stress DB を実TauriアプリのDBとして開く確認。checksum照合とテーブル形状は自動テスト済み。実アプリ起動そのものは人間確認
 - [ ] **保存先消失（実OS）**: バックアップまたは外部書き出しの途中で外付けディスクを抜く。アプリがクラッシュせず、再操作できること
 
-## Phase 5 (配布・更新)
+## Phase 5 (配布・署名) — Phase 7 で方針を更新
 
-- [ ] Apple Developer Programへ登録し、Developer ID Application証明書を取得する
-- [ ] macOSコード署名・公証用の秘密情報(証明書、App用パスワード、Team ID)を取得する
-- [ ] Windowsコード署名証明書(EV推奨)を取得する
-- [ ] 取得した証明書・秘密情報をGitHub Secretsへ登録する。登録先の値は`.github/workflows/release.yml`が参照する以下の名前を使う。
-  - `APPLE_CERTIFICATE` / `APPLE_CERTIFICATE_PASSWORD` / `APPLE_SIGNING_IDENTITY`
-  - `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID`
-  - `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
-- [ ] Tauri Updater用の署名鍵ペアを`pnpm tauri signer generate -w ~/.tauri/mitsumori-desk.key`等で生成し、秘密鍵をリポジトリに含めず安全に保管する(公開鍵は`tauri.conf.json`の`plugins.updater.pubkey`へ設定する)
-- [ ] 更新ファイル(`latest.json`)の配置先(ダウンロード提供先)を決定し、`tauri.conf.json`の`plugins.updater.endpoints`へ設定する
-- [ ] 上記が揃ったら`tauri-plugin-updater`をCargo依存へ追加し、`src/infrastructure/updates/`に実装(例: `TauriUpdateCheck`)を追加して`notConfiguredUpdateCheck`を差し替える(境界はADR 0008を参照。設計上、置き換えは小さな変更で済むはず)
+自動更新は行わない(新しい版はココナラのメッセージで配布する。ADR 0008 改訂)。そのため Tauri Updater の鍵・`latest.json` の配置先は不要になった。
+Windows は署名なしで配布する(オーナー決定。SmartScreen の手順を `docs/INSTALL_GUIDE_WINDOWS.md` で案内)。
+
+- [ ] Apple Developer Program(登録済み)で **Developer ID Application** 証明書を作る(App Store 用の証明書とは別)。手順の目安:
+  1. Mac の「キーチェーンアクセス」→「証明書アシスタント」→「認証局に証明書を要求」で CSR を作る
+  2. developer.apple.com → Certificates → 「+」→ **Developer ID Application** を選び、CSR をアップロードしてダウンロード・ダブルクリックで登録
+  3. キーチェーンアクセスで証明書(と秘密鍵)を選び、`.p12` 形式で書き出す(パスワードを付ける)
+  4. `base64 -i 証明書.p12 | pbcopy` で base64 文字列にする
+- [ ] appleid.apple.com で **App 用パスワード** を作る(公証に使う)。Team ID は developer.apple.com の Membership で確認する
+- [ ] GitHub の Settings → Secrets and variables → Actions に次を登録する(`installers.yml` / `release.yml` が参照する)
+  - `APPLE_CERTIFICATE`(手順4の base64) / `APPLE_CERTIFICATE_PASSWORD`(.p12 のパスワード)
+  - `APPLE_SIGNING_IDENTITY`(例: `Developer ID Application: 氏名または屋号 (TEAMID)`)
+  - `APPLE_ID`(Apple ID のメール) / `APPLE_PASSWORD`(App 用パスワード) / `APPLE_TEAM_ID`
+- [ ] Actions で「Installers (ココナラ納品物)」を実行し、Mac の zip 名に `-unsigned` が付かないこと、ジョブの「署名・公証の確認」が成功することを確かめる
+- [ ] (任意・将来)Windows のコード署名証明書を買う場合は、`tauri.windows.conf.json` に署名設定を足す(今は不要)
 - [ ] GitHub Releaseのdraftを確認し、内容に問題なければ本番公開する(公開はCIでは自動化しない)
 
 ## Phase 6 (販売)
 
 - [ ] `LICENSE`の権利者名と正式なライセンス文言を確定する(現状は暫定の全著作権留保表記)
-- [ ] 販売者情報・特定商取引法に基づく表示を確定する。確定したら`src-tauri/tauri.conf.json`の`bundle.publisher`・`bundle.copyright`(キー自体は用意済み、値は空文字)にも反映する
-- [ ] `docs/TERMS_OF_SERVICE_DRAFT.md`・`docs/DISCLAIMER_DRAFT.md`(いずれも下書き)を弁護士等の専門家によるレビューを経て確定し、`[ ]`のプレースホルダーを埋める。確定後はファイル名から`_DRAFT`を外し、購入者へ提示する
-- [ ] 上記3項目が揃ったら`pnpm check:release -- --strict`を実行し、未確定情報の検出がゼロになることを確認する(`docs/RELEASE_GATES.md`参照)
+- [ ] 販売者情報・特定商取引法に基づく表示を確定する(ココナラ上の表示が必要かどうかも含めて確認)。確定したら`src-tauri/tauri.conf.json`の`bundle.publisher`・`bundle.copyright`(値は空文字)にも反映する
+- [ ] `docs/TERMS_OF_SERVICE_DRAFT.md`・`docs/DISCLAIMER_DRAFT.md`(いずれも下書き)を弁護士等の専門家によるレビューを経て確定し、`[ ]`のプレースホルダーを埋める(利用台数・返金条件・対応OS・準拠法・管轄)。確定後はファイル名から`_DRAFT`を外す(納品PDFの「下書き」表示も自動で消える)
+- [ ] 上記が揃ったら`pnpm check:release -- --strict`を実行し、未確定情報の検出がゼロになることを確認する(`docs/RELEASE_GATES.md`参照)
 - [ ] `src-tauri/tauri.conf.json`の`bundle.macOS.minimumSystemVersion`(現在は印刷機能の要件から`11.0`を暫定設定)を、実機確認結果を踏まえて必要なら調整する
-- [ ] お問い合わせ窓口(連絡方法)を確定し、`docs/USER_MANUAL.md`「5. お困りの際は」および`src/features/help/HelpPage.tsx`・`README.md`の `support-contact: PENDING` を `CONFIRMED` へ更新して連絡方法を書く
-- [ ] `docs/QUICK_START_GUIDE.md`・`docs/USER_MANUAL.md`を実際の同梱物(PDF化等)として整え、画面の実文言と差異がないか最終確認する
+- [x] お問い合わせ窓口を確定する → ココナラのトークルーム/ダイレクトメッセージ(ココナラの規約上、外部の連絡先は使わない)。README・マニュアル・ヘルプを `support-contact: CONFIRMED` に更新済み
+- [ ] 納品 zip の中の PDF(はじめにお読みください・クイックスタート・マニュアル)を開き、画面の実際の文言と差がないか最終確認する
 - [ ] `docs/BETA_TEST_OBSERVATION_SHEET.md`を使ってベータ利用者(5〜10人)を募集し、観察記録を取る
 - [ ] 観察結果を`docs/02_DEVELOPMENT_PHASES.md`のリリース判断基準(重大な計算誤り・データ消失・復元不能・秘密情報漏えい・発行済み書類の変化が1件でもあれば正式販売しない)に照らして、正式販売の可否を判断する
-- [ ] ココナラの商品ページを作成・公開する
+- [ ] 販売価格と返金条件を決める
+- [ ] 商品画像を作る(`tests/e2e-tauri` のスクリーンショットではなく、Mac/Windows 実機の画面で)。5分操作動画を収録する(`docs/DEMO_VIDEO_SCRIPT.md`)
+- [ ] ココナラの最新の規約(外部連絡先・クラウドストレージ・添付サイズ)を確認し、`docs/COCONALA_LISTING.md` をもとに商品ページを作成・公開する
 - [ ] 有料AIサービスとの契約(購入者自身が行う運用のため、販売者としての契約は不要だが、動作確認用に一時契約する場合はここに記録する)
+
+## Phase 7 (ココナラ納品物)
+
+- [ ] **本番のライセンス鍵を作る**: `pnpm license:keygen` を実行し、表示された公開鍵で `src-tauri/license/public_key.b64` を置き換えてコミットする。秘密鍵(`~/.mitsumori-desk-license/private.pem`)は USB メモリ等にもバックアップする(失くすとキーを発行できない)。開発用の鍵のままだと `--strict` が失敗する
+- [ ] 本番鍵で `pnpm license:issue --id TEST-0001` を発行し、Mac / Windows の実機アプリで登録できること、改ざんしたキー(1文字変える)が拒否されることを確かめる
+- [ ] 実機で、ライセンス未登録のときに印刷・PDFへ「未認証版」が入り、登録後に消えることを確認する(`PDF_VISUAL_TEST_CHECKLIST.md` の P)
+- [ ] 納品 zip をトークルームに実際に添付できること(サイズ・拡張子)を、テスト用の取引またはココナラのヘルプで確認する
+- [ ] Windows の実機確認が終わったら、`docs/supported-platforms.json` の `firstSale` に `"windows"` を追加し、`pendingDeviceVerification` から外す。README・マニュアル・出品文の「Windows版は実機確認が完了するまで正式対応としません」を外し、`pnpm check:release -- --rc` が通ることを確認する
+- [ ] macOS / Windows のビルドは GitHub Actions でしか確認できない。このブランチの変更を main へ入れる前に、CI(`ci.yml` の build ジョブ)と `installers.yml` を一度実行し、成功を確認する(開発セッションからはワークフローを起動する権限がなかった)
 
 ## 本番故障の実機確認
 
@@ -81,7 +97,7 @@
 
 - [ ] **AUTH-05**: 資格情報ストアが使えない環境(Linuxで Secret Service 未起動、または Keychain 権限拒否)で APIキー保存が失敗し、見積・発行はAIなしで続けられる
 - [ ] **COMMS-05 / COMMS-06**: 飛行機モードおよび不正なプロキシ証明書で、問い合わせ抽出が「通信に失敗」になり、手動見積へ進める。送信前確認をキャンセルするとリクエストが飛ばない
-- [ ] **CONC-08**: 同じデータフォルダでアプリを二重起動したとき、後発がクラッシュせず、DBファイルが壊れない
+- [ ] **CONC-08**: アプリをもう一度起動すると、既に開いているウィンドウが前面に出るだけで、2つ目は起動しない(macOS / Windows。単一インスタンス化済み)
 - [ ] **CONC-07**: 見積保存の最中にバックアップ作成。成功するか、分かりやすい失敗かのいずれか。現行DBが壊れない
 - [ ] **USER-09**: 日本語IME変換確定前に Cmd/Ctrl+Enter 相当を押しても、意図しない発行が走らない
 - [ ] **EXT-04 / EXT-08**: ディスク満杯・外付け切断・印刷エンジンは既存の Phase 4 / Phase 2 項目と重複。本カタログの期待結果(日本語エラー、不完全ファイルを残さない、帳票目視)を満たすこと

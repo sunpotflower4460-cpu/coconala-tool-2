@@ -27,8 +27,10 @@ test("初回設定を完了すると、顧客・価格表・練習見積が作�
   assert.match(draftText, /E2Eテスト株式会社/, "選択した顧客が表示される");
   assert.match(draftText, /E2Eテスト作業/, "登録した価格表の商品名が表示される");
   assert.match(draftText, /小計: ￥10,000/, "税抜小計が正しく計算される");
-  assert.match(draftText, /消費税: ￥1,000/, "消費税(10%)が正しく計算される");
-  assert.match(draftText, /合計: ￥11,000/, "合計金額が正しく計算される");
+  assert.match(draftText, /10%対象\(税抜\): ￥10,000/, "税率ごとの対象額が表示される");
+  assert.match(draftText, /消費税\(10%\): ￥1,000/, "消費税(10%)が正しく計算される");
+  assert.match(draftText, /合計\(税込\): ￥11,000/, "合計金額が正しく計算される");
+  assert.match(draftText, /ライセンスキーが未登録です/, "未登録の案内帯が出る(操作は妨げない)");
 });
 
 test("アプリを再起動しても、顧客・価格表・見積・会社情報・設定が保持される", async (t) => {
