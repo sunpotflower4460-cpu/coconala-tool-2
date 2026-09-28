@@ -11,7 +11,7 @@ CIでビルドが成功することと、正式対応は別です。
 
 - **macOS**(実機でのインストーラー確認・Developer ID署名・Apple公証・Gatekeeper確認が完了したあと、正式対応とする)
 
-対応バージョンの下限は `src-tauri/tauri.conf.json` の `bundle.macOS.minimumSystemVersion`(現在は暫定値 `10.13`)を、実機確認後に人間が確定する。
+対応バージョンの下限は `src-tauri/tauri.conf.json` の `bundle.macOS.minimumSystemVersion`(現在は暫定値 `11.0`。WKWebViewの印刷機能とApple Silicon対応の下限)を、実機確認後に人間が確定する。
 
 ## ビルドは存在するが、初回販売の対象外
 

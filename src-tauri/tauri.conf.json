@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "mitsumori-desk",
+  "productName": "MitsumoriDesk",
   "version": "0.1.0",
   "identifier": "com.mitsumoridesk.desktop",
   "build": {
@@ -37,7 +37,12 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "minimumSystemVersion": "10.13"
+      "minimumSystemVersion": "11.0",
+      "hardenedRuntime": true,
+      "infoPlist": "Info.plist",
+      "files": {
+        "Resources/ja.lproj/InfoPlist.strings": "macos/ja.lproj/InfoPlist.strings"
+      }
     }
   }
 }

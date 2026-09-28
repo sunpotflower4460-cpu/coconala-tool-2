@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- 見積・請求書デスク アプリアイコン原画。変更後は `pnpm icons` で全サイズを再生成する。 -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1f6feb"/>
+      <stop offset="1" stop-color="#0b3d91"/>
+    </linearGradient>
+  </defs>
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#bg)"/>
+  <!-- 書類 -->
+  <path d="M300 208h320l136 136v472a40 40 0 0 1-40 40H300a40 40 0 0 1-40-40V248a40 40 0 0 1 40-40z" fill="#ffffff"/>
+  <path d="M620 208v96a40 40 0 0 0 40 40h96z" fill="#c9dcff"/>
+  <!-- 明細の線 -->
+  <rect x="330" y="300" width="220" height="28" rx="14" fill="#c9dcff"/>
+  <rect x="330" y="372" width="160" height="28" rx="14" fill="#c9dcff"/>
+  <!-- 円記号 -->
+  <g stroke="#0b3d91" stroke-width="56" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M408 470l104 136 104-136"/>
+    <path d="M512 606v176"/>
+    <path d="M430 640h164"/>
+    <path d="M430 716h164"/>
+  </g>
+</svg>

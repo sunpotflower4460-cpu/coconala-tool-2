@@ -18,6 +18,10 @@
 
 ### Added
 
+- 独自のアプリアイコン(原画 `src-tauri/icons/source/app-icon.svg`、`pnpm icons` で全サイズ再生成)
+- 製品名 `MitsumoriDesk`(インストーラー名)と、macOS の日本語表示名「見積・請求書デスク」。データ保存先を決める `identifier` は変更しない
+- OS別の配布設定: macOS は dmg(下限 macOS 11.0)、Windows は日本語・管理者権限不要の NSIS インストーラー
+
 - 本番運用の故障モードカタログ(`docs/PRODUCTION_FAILURE_RISKS.md`)と、API・認証・通信・同時実行・データ不整合・ユーザー操作・外部障害・セキュリティの再現テスト
 - 発行確認ダイアログの連打防止
 - Phase 0: Tauri 2 + React + TypeScript + Viteのプロジェクト土台

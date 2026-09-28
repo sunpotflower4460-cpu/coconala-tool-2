@@ -27,7 +27,8 @@
     "check:release:rc": "node scripts/verify-release.mjs --rc",
     "check:release:strict": "node scripts/verify-release.mjs --strict",
     "seed:stress": "node scripts/run-seed-stress.mjs",
-    "seed:stress:ci": "node scripts/run-seed-stress.mjs --profile=ci"
+    "seed:stress:ci": "node scripts/run-seed-stress.mjs --profile=ci",
+    "icons": "tauri icon src-tauri/icons/source/app-icon.svg -o src-tauri/icons && rm -rf src-tauri/icons/android src-tauri/icons/ios"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

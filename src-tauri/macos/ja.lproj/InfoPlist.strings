@@ -1,0 +1,3 @@
+/* Finder・Dock・メニューバーに表示するアプリ名 */
+CFBundleDisplayName = "見積・請求書デスク";
+CFBundleName = "見積・請求書デスク";
